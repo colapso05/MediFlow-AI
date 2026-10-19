@@ -1,6 +1,7 @@
 
 import os
 from contextlib import contextmanager
+from datetime import date
 
 import psycopg
 from psycopg.rows import dict_row
@@ -9,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
+from backend.agenda import consultar_horarios
 from agente import agente
 load_dotenv()
 
@@ -61,21 +63,15 @@ def conversar(datos: MensajeChat):
         return {"respuesta": respuesta}
 
     except Exception as error:
-        import traceback
-
-    print("\n[ERROR MEDIFLOW AI]", flush=True)
-    print("Tipo:", type(error).__name__, flush=True)
-    print("Mensaje:", str(error), flush=True)
-    traceback.print_exception(
-        type(error),
-        error,
-        error.__traceback__
-    )
-
-    raise HTTPException(
-        status_code=502,
-        detail="No fue posible obtener respuesta del agente"
-    )
+        print(
+            "[ERROR MEDIFLOW AI]",
+            type(error).__name__,
+            flush=True,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="No fue posible obtener respuesta del agente",
+        ) from error
 
 @contextmanager
 def obtener_conexion():
@@ -151,3 +147,28 @@ def listar_medicos(
             """,
             {"especialidad_id": especialidad_id}
         ).fetchall()
+
+
+@app.get("/api/horarios")
+def listar_horarios(
+    medico_id: int | None = Query(default=None, gt=0),
+    especialidad_id: int | None = Query(default=None, gt=0),
+    desde: date | None = None,
+    hasta: date | None = None,
+    limite: int = Query(default=50, ge=1, le=200),
+):
+    if desde and hasta and hasta < desde:
+        raise HTTPException(
+            status_code=400,
+            detail="La fecha final no puede ser anterior a la inicial",
+        )
+
+    with obtener_conexion() as conexion:
+        return consultar_horarios(
+            conexion,
+            medico_id=medico_id,
+            especialidad_id=especialidad_id,
+            desde=desde,
+            hasta=hasta,
+            limite=limite,
+        )

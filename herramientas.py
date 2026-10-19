@@ -1,10 +1,13 @@
 
 import os
+from datetime import date
+from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg.rows import dict_row
 from dotenv import load_dotenv
 from langchain_core.tools import tool
+from backend.agenda import consultar_horarios
 
 load_dotenv()
 
@@ -65,7 +68,49 @@ def buscar_medicos(
             return cursor.fetchall()
 
 
+@tool
+def buscar_horarios(
+    medico_id: int,
+    desde: date | None = None,
+    hasta: date | None = None,
+) -> list[dict]:
+    """Consulta los próximos horarios libres de un médico.
+    Usa buscar_medicos para obtener su identificador. Las fechas son días
+    locales de Chile e incluyen ambos extremos.
+    """
+
+    with psycopg.connect(
+        os.environ["DATABASE_URL"],
+        row_factory=dict_row,
+        connect_timeout=5,
+    ) as conexion:
+        horarios = consultar_horarios(
+            conexion,
+            medico_id=medico_id,
+            desde=desde,
+            hasta=hasta,
+            limite=10,
+        )
+
+    zona_chile = ZoneInfo("America/Santiago")
+    return [
+        {
+            "id": horario["id"],
+            "medico_id": horario["medico_id"],
+            "medico": horario["medico"],
+            "especialidad": horario["especialidad"],
+            "inicio": horario["inicio"].astimezone(zona_chile).strftime(
+                "%d/%m/%Y %H:%M"
+            ),
+            "fin": horario["fin"].astimezone(zona_chile).strftime("%H:%M"),
+        }
+        for horario in horarios
+    ]
+
+
 HERRAMIENTAS = [
     buscar_especialidades,
-    buscar_medicos
+    buscar_medicos,
+    buscar_horarios,
 ]
+
