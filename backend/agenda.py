@@ -30,9 +30,12 @@ def consultar_horarios(
         JOIN medicos m ON m.id = h.medico_id
         JOIN especialidades e ON e.id = m.especialidad_id
         WHERE m.activo = TRUE
-          AND (%(medico_id)s IS NULL OR h.medico_id = %(medico_id)s)
           AND (
-              %(especialidad_id)s IS NULL
+              %(medico_id)s::integer IS NULL
+              OR h.medico_id = %(medico_id)s
+          )
+          AND (
+              %(especialidad_id)s::integer IS NULL
               OR m.especialidad_id = %(especialidad_id)s
           )
           AND (

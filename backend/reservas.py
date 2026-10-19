@@ -1,3 +1,7 @@
+import hashlib
+import json
+from uuid import UUID
+
 import psycopg
 
 
@@ -7,6 +11,53 @@ class HorarioNoDisponible(Exception):
 
 class CitaNoEncontrada(Exception):
     """La cita no existe, no pertenece al paciente o ya no está activa."""
+
+
+class ClaveIdempotenciaEnConflicto(Exception):
+    """La clave ya fue usada para una solicitud diferente."""
+
+
+def _huella_reserva(
+    *,
+    horario_id: int,
+    nombre: str,
+    email: str | None,
+    telefono: str | None,
+) -> str:
+    solicitud = json.dumps(
+        [horario_id, nombre, email, telefono],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(solicitud.encode("utf-8")).hexdigest()
+
+
+def _buscar_reserva_idempotente(
+    conexion: psycopg.Connection,
+    *,
+    idempotency_key: UUID,
+    huella: str,
+) -> dict | None:
+    cita = conexion.execute(
+        """
+        SELECT id, paciente_id, medico_id, horario_id, estado, creada_en,
+               idempotency_fingerprint
+        FROM citas
+        WHERE idempotency_key = %s
+        """,
+        (idempotency_key,),
+    ).fetchone()
+
+    if not cita:
+        return None
+    if cita["idempotency_fingerprint"] != huella:
+        raise ClaveIdempotenciaEnConflicto
+
+    return {
+        campo: valor
+        for campo, valor in cita.items()
+        if campo != "idempotency_fingerprint"
+    }
 
 
 def _obtener_o_crear_paciente(
@@ -73,8 +124,9 @@ def reservar_cita(
     nombre: str,
     email: str | None = None,
     telefono: str | None = None,
+    idempotency_key: UUID,
 ) -> dict:
-    """Registra una cita confirmada dentro de una transacción PostgreSQL."""
+    """Registra una cita confirmada con reintentos idempotentes."""
     nombre = nombre.strip()
     email = email.strip().lower() if email else None
     telefono = telefono.strip() if telefono else None
@@ -84,8 +136,23 @@ def reservar_cita(
     if not email and not telefono:
         raise ValueError("Se requiere un correo o teléfono de contacto")
 
+    huella = _huella_reserva(
+        horario_id=horario_id,
+        nombre=nombre,
+        email=email,
+        telefono=telefono,
+    )
+
     try:
         with conexion.transaction():
+            cita_existente = _buscar_reserva_idempotente(
+                conexion,
+                idempotency_key=idempotency_key,
+                huella=huella,
+            )
+            if cita_existente:
+                return cita_existente
+
             horario = conexion.execute(
                 """
                 SELECT h.id, h.medico_id
@@ -101,6 +168,14 @@ def reservar_cita(
 
             if not horario:
                 raise HorarioNoDisponible
+
+            cita_existente = _buscar_reserva_idempotente(
+                conexion,
+                idempotency_key=idempotency_key,
+                huella=huella,
+            )
+            if cita_existente:
+                return cita_existente
 
             ocupado = conexion.execute(
                 """
@@ -123,18 +198,35 @@ def reservar_cita(
             )
             cita = conexion.execute(
                 """
-                INSERT INTO citas (paciente_id, medico_id, horario_id)
-                VALUES (%s, %s, %s)
+                INSERT INTO citas (
+                    paciente_id, medico_id, horario_id, idempotency_key,
+                    idempotency_fingerprint
+                )
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id, paciente_id, medico_id, horario_id, estado,
                           creada_en
                 """,
-                (paciente_id, horario["medico_id"], horario_id),
+                (
+                    paciente_id,
+                    horario["medico_id"],
+                    horario_id,
+                    idempotency_key,
+                    huella,
+                ),
             ).fetchone()
 
             return cita
     except psycopg.errors.UniqueViolation as error:
         if error.diag.constraint_name == "citas_horario_activo_idx":
             raise HorarioNoDisponible from error
+        if error.diag.constraint_name == "citas_idempotency_key_idx":
+            cita_existente = _buscar_reserva_idempotente(
+                conexion,
+                idempotency_key=idempotency_key,
+                huella=huella,
+            )
+            if cita_existente:
+                return cita_existente
         raise
 
 
