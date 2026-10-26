@@ -471,6 +471,17 @@ if DIST.is_dir():
     app.mount("/app", StaticFiles(directory=DIST, html=True), name="frontend")
 
 
+@app.middleware("http")
+async def sin_cache_en_html(request, call_next):
+    """Evita que el navegador guarde una versión vieja del simulador o del CRM."""
+    respuesta = await call_next(request)
+    ruta = request.url.path
+    if ruta in ("/", "/crm", "/demo") or ruta.startswith("/app"):
+        if respuesta.headers.get("content-type", "").startswith("text/html"):
+            respuesta.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    return respuesta
+
+
 @app.get("/")
 def raiz():
     return RedirectResponse(url="/app" if DIST.is_dir() else "/crm")
