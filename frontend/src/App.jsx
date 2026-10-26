@@ -45,6 +45,7 @@ export default function App() {
 
     setTexto("");
     setCargando(true);
+    let ultimoError = null;
 
     try {
       const pedir = () =>
@@ -60,17 +61,29 @@ export default function App() {
           }),
         });
 
-      // Si la API está arrancando o se cayó un instante, se reintenta una vez.
-      let respuesta;
-      try {
-        respuesta = await pedir();
-      } catch (red) {
-        await new Promise((r) => setTimeout(r, 1500));
-        respuesta = await pedir();
+      // La API puede estar arrancando (tarda ~10 s en cargar el agente) o haberse
+      // reiniciado: se reintenta con espera progresiva antes de declarar el fallo.
+      let respuesta = null;
+      const esperas = [1500, 3000, 5000];
+
+      for (let intento = 0; intento <= esperas.length; intento++) {
+        try {
+          respuesta = await pedir();
+          if (respuesta.ok) break;
+          if (respuesta.status === 502 && intento < esperas.length) {
+            await new Promise((r) => setTimeout(r, esperas[intento]));
+            continue;
+          }
+          throw new Error(`Error HTTP ${respuesta.status}`);
+        } catch (red) {
+          ultimoError = red;
+          if (intento >= esperas.length) throw red;
+          await new Promise((r) => setTimeout(r, esperas[intento]));
+        }
       }
 
-      if (!respuesta.ok) {
-        throw new Error(`Error HTTP ${respuesta.status}`);
+      if (!respuesta || !respuesta.ok) {
+        throw new Error(`Error HTTP ${respuesta ? respuesta.status : "sin respuesta"}`);
       }
 
       const datos = await respuesta.json();
@@ -84,12 +97,14 @@ export default function App() {
         },
       ]);
     } catch (error) {
-      console.error(error);
+      console.error(ultimoError || error);
 
-      const pista =
-        window.location.protocol === "file:"
-          ? "Estás abriendo el archivo directo (file://). Entra por http://127.0.0.1:8000/app"
-          : `No hubo respuesta de ${window.location.origin}/api/chat`;
+      const esHttp = String(error.message || "").startsWith("Error HTTP");
+      const pista = window.location.protocol === "file:"
+        ? "Estás abriendo el archivo directo (file://). Entra por http://127.0.0.1:8000/app"
+        : esHttp
+          ? `El servidor respondió ${error.message.replace("Error HTTP ", "")} en ${window.location.origin}/api/chat`
+          : `No hubo respuesta de ${window.location.origin}/api/chat tras varios intentos. Revisa que la ventana "MediFlow API" siga abierta.`;
 
       setMensajes((prev) => [
         ...prev,
