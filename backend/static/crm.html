@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediFlow · Recepción</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --line:#e9eaee; --line2:#f2f3f6;
+    --ink:#16181d; --mut:#6b7280; --mut2:#9ca3af;
+    --accent:#1a56db; --accent-bg:#eef3ff;
+    --ok:#0f7a52; --ok-bg:#e9f7f0;
+    --bad:#b42318; --bad-bg:#fdecea;
+    --soft:#f4f5f7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:13.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:grid;grid-template-columns:212px 1fr;min-height:100vh}
+
+  /* ---------- sidebar ---------- */
+  .side{background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;
+    padding:18px 12px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:8px;padding:2px 8px 18px;font-weight:600;font-size:14px;
+    letter-spacing:-.2px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:var(--accent);display:block}
+  .brand span{color:var(--mut2);font-weight:400;font-size:11px;margin-left:auto}
+  nav{display:flex;flex-direction:column;gap:2px}
+  .nav{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;border:0;
+    background:none;color:var(--mut);font:inherit;font-size:12.5px;text-align:left;cursor:pointer;
+    transition:background .12s,color .12s}
+  .nav:hover{background:var(--soft);color:var(--ink)}
+  .nav.on{background:var(--soft);color:var(--ink);font-weight:500}
+  .nav svg{width:15px;height:15px;flex:0 0 auto;opacity:.75}
+  .nav.on svg{opacity:1;color:var(--accent)}
+  .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 4px}
+  .side-foot a{font-size:12px;color:var(--mut);text-decoration:none;display:flex;align-items:center;
+    gap:6px;padding:8px 9px;border-radius:8px;border:1px solid var(--line);justify-content:center}
+  .side-foot a:hover{border-color:#d9d9e0;color:var(--ink)}
+  .sync{font-size:10.5px;color:var(--mut2);text-align:center}
+
+  /* ---------- main ---------- */
+  main{padding:22px 26px 40px;overflow:hidden}
+  .top{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
+  .top h1{font-size:17px;font-weight:600;letter-spacing:-.3px}
+  .top p{font-size:12px;color:var(--mut);margin-top:2px}
+  .pills{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+    font-size:11px;color:var(--mut);white-space:nowrap}
+  .pill b{color:var(--ink);font-weight:600;margin-right:4px;font-variant-numeric:tabular-nums}
+  .pill.ok b{color:var(--ok)} .pill.bad b{color:var(--bad)}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  select,input[type=date],input[type=text],input[type=email],input[type=tel]{
+    font:inherit;font-size:12.5px;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:7px 9px;outline:none}
+  select:focus,input:focus{border-color:#c9d4f5;box-shadow:0 0 0 3px rgba(26,86,219,.08)}
+  .seg{display:flex;align-items:center;background:var(--card);border:1px solid var(--line);
+    border-radius:8px;overflow:hidden}
+  .seg input{border:0;border-radius:0;box-shadow:none!important;width:124px}
+  .seg button{border:0;background:none;color:var(--mut);width:26px;height:32px;cursor:pointer;font-size:15px}
+  .seg button:hover{background:var(--soft);color:var(--ink)}
+  button.ghost{font:inherit;font-size:12.5px;background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:7px 11px;color:var(--mut);cursor:pointer}
+  button.ghost:hover{border-color:#d9d9e0;color:var(--ink)}
+  .grow{flex:1}
+  .search{width:200px}
+
+  /* ---------- cards / views ---------- */
+  .hide{display:none!important}
+  .split{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
+  @media(max-width:1080px){.split{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card h2{font-size:11.5px;font-weight:600;color:var(--mut);
+    padding:13px 16px;border-bottom:1px solid var(--line2)}
+
+  /* ---------- agenda rows ---------- */
+  .rows{max-height:calc(100vh - 220px);overflow-y:auto}
+  .row{display:grid;grid-template-columns:52px 1fr auto auto;align-items:center;gap:12px;
+    padding:9px 16px;border-bottom:1px solid var(--line2);cursor:pointer;transition:background .1s}
+  .row:last-child{border-bottom:0}
+  .row:hover{background:#fcfcfe}
+  .row.sel{background:var(--accent-bg)}
+  .row .h{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--mut);font-weight:500}
+  .row.busy .h{color:var(--ink);font-weight:600}
+  .who{min-width:0}
+  .who b{display:block;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  .who span{font-size:11px;color:var(--mut2)}
+  .row.free .who b{color:var(--mut2);font-weight:400}
+  .chip{font-size:10.5px;padding:2px 8px;border-radius:999px;white-space:nowrap;font-weight:500}
+  .c-confirmada{background:var(--ok-bg);color:var(--ok)}
+  .c-completada{background:var(--accent-bg);color:var(--accent)}
+  .c-cancelada{background:var(--bad-bg);color:var(--bad)}
+  .c-libre{background:var(--soft);color:var(--mut2)}
+  .acts{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+  .row:hover .acts,.row.sel .acts{opacity:1}
+  .row.free .acts{opacity:.55}
+  .row.free:hover .acts{opacity:1}
+  .rows::-webkit-scrollbar,.chat::-webkit-scrollbar{width:8px}
+  .rows::-webkit-scrollbar-thumb,.chat::-webkit-scrollbar-thumb{background:#dcdfe6;border-radius:8px}
+  .rows::-webkit-scrollbar-thumb:hover,.chat::-webkit-scrollbar-thumb:hover{background:#c8ccd6}
+  .rows::-webkit-scrollbar-track,.chat::-webkit-scrollbar-track{background:transparent}
+  .ico{width:26px;height:26px;border:1px solid var(--line);background:var(--card);border-radius:7px;
+    display:grid;place-items:center;cursor:pointer;color:var(--mut);font-size:12px;padding:0}
+  .ico:hover{border-color:#d9d9e0;color:var(--ink);background:var(--soft)}
+  .ico.go{border-color:#cddcff;background:var(--accent-bg);color:var(--accent);width:auto;padding:0 10px;
+    font-size:11.5px;font-weight:500}
+  .ico.go:hover{background:#e3ecff}
+
+  /* ---------- detail ---------- */
+  .detail{padding:0}
+  .detail .body{padding:16px}
+  .detail .empty{padding:34px 16px;text-align:center;color:var(--mut2);font-size:12px;line-height:1.6}
+  .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);margin-bottom:2px}
+  .v{font-size:13px;margin-bottom:12px}
+  .detail .acts2{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .btn{font:inherit;font-size:12.5px;border-radius:8px;padding:8px 10px;cursor:pointer;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);text-align:center}
+  .btn:hover{background:var(--soft)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.pri:hover{background:#1548b8}
+  .btn.dan{color:var(--bad);border-color:#f3d3cf}
+  .btn.dan:hover{background:var(--bad-bg)}
+
+  /* ---------- tabla pacientes ---------- */
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);text-align:left;
+    padding:11px 16px;border-bottom:1px solid var(--line2);font-weight:500}
+  td{padding:11px 16px;border-bottom:1px solid var(--line2);font-size:12.5px}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#fcfcfe}
+  tbody tr:last-child td{border-bottom:0}
+
+  /* ---------- chat ---------- */
+  .chat{max-height:calc(100vh - 190px);overflow-y:auto;display:flex;flex-direction:column;
+    gap:8px;padding:16px}
+  .b{font-size:12.5px;line-height:1.5;padding:9px 12px;border-radius:12px;max-width:min(560px,86%)}
+  .b.user{background:var(--soft);align-self:flex-start}
+  .b.bot{background:var(--accent-bg);align-self:flex-end}
+  .b .m{display:block;font-size:10px;color:var(--mut2);margin-top:4px}
+
+  .vacio{padding:30px 16px;text-align:center;color:var(--mut2);font-size:12.5px}
+
+  /* ---------- modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(18,20,26,.42);backdrop-filter:blur(2px);display:none;
+    align-items:center;justify-content:center;z-index:60;padding:20px}
+  .overlay.on{display:flex}
+  .modal{background:var(--card);border-radius:14px;width:min(400px,100%);box-shadow:0 24px 60px rgba(0,0,0,.22);
+    overflow:hidden}
+  .modal header{padding:16px 18px 4px}
+  .modal header h3{font-size:14px;font-weight:600}
+  .modal header p{font-size:11.5px;color:var(--mut);margin-top:3px}
+  .modal .f{padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+  .modal label{font-size:11px;color:var(--mut);display:block;margin-bottom:4px}
+  .modal input,.modal select{width:100%}
+  .modal .err{color:var(--bad);font-size:11.5px;min-height:15px}
+  .modal .pie{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 16px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="side">
+    <div class="brand"><i></i>MediFlow<span>recepción</span></div>
+    <nav>
+      <button class="nav on" data-view="agenda">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        Agenda
+      </button>
+      <button class="nav" data-view="pacientes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4s6.3 1.8 7.5 5.4"/></svg>
+        Pacientes
+      </button>
+      <button class="nav" data-view="chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></svg>
+        Conversación
+      </button>
+    </nav>
+    <div class="side-foot">
+      <a href="/app" target="_blank">Abrir WhatsApp ↗</a>
+      <div class="sync" id="sync">conectando…</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div>
+        <h1 id="titulo">Agenda</h1>
+        <p id="sub">—</p>
+      </div>
+      <div class="pills" id="kpis"></div>
+    </div>
+
+    <section id="v-agenda">
+      <div class="toolbar">
+        <select id="selMedico"></select>
+        <div class="seg">
+          <button id="prevDia" title="Día anterior">‹</button>
+          <input type="date" id="fecha">
+          <button id="nextDia" title="Día siguiente">›</button>
+        </div>
+        <button class="ghost" id="btnHoy">Hoy</button>
+        <div class="grow"></div>
+        <input type="text" class="search" id="busca" placeholder="Filtrar por paciente…">
+      </div>
+      <div class="split">
+        <div class="card">
+          <h2 id="tituloDia">Cupos del día</h2>
+          <div class="rows" id="agenda"></div>
+        </div>
+        <aside class="card detail">
+          <h2>Detalle</h2>
+          <div class="body" id="detalle">
+            <div class="empty">Selecciona una cita de la agenda<br>para ver la ficha y las acciones.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="v-pacientes" class="hide">
+      <div class="toolbar">
+        <input type="text" class="search" id="buscaPac" placeholder="Buscar por nombre o teléfono…" style="width:300px">
+      </div>
+      <div class="card">
+        <table><thead><tr><th>Paciente</th><th>Contacto</th><th style="text-align:right">Citas activas</th><th style="text-align:right">Histórico</th></tr></thead>
+          <tbody id="tablaPac"></tbody></table>
+      </div>
+    </section>
+
+    <section id="v-chat" class="hide">
+      <div class="card"><h2>Conversación del agente</h2><div class="chat" id="chat"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <header><h3 id="mTitulo">Agendar hora</h3><p id="mSub"></p></header>
+    <div class="f" id="mCampos"></div>
+    <div class="pie">
+      <button class="btn" id="mCancelar">Cancelar</button>
+      <button class="btn pri" id="mOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TZ = 'America/Santiago';
+const API = '';
+
+const hora = iso => new Date(iso).toLocaleTimeString('es-CL',
+  {hour:'2-digit',minute:'2-digit',hour12:false,timeZone:TZ});
+const fechaCorta = iso => new Date(iso).toLocaleDateString('es-CL',
+  {day:'2-digit',month:'2-digit',timeZone:TZ});
+const hoyChile = () => new Date().toLocaleDateString('en-CA',{timeZone:TZ});
+const largo = iso => {
+  const t = new Date(iso + 'T12:00:00').toLocaleDateString('es-CL',
+    {weekday:'long', day:'numeric', month:'long', timeZone:TZ});
+  return t.charAt(0).toUpperCase() + t.slice(1).replace(' de ', ' de ');
+};
+
+let medicos = [], slots = [], seleccion = null, accion = null;
+
+async function jget(ruta){
+  const r = await fetch(API + ruta);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function jpost(ruta, cuerpo){
+  const r = await fetch(API + ruta, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(cuerpo || {})
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+  return d;
+}
+
+/* ---------------- navegación ---------------- */
+document.querySelectorAll('.nav').forEach(b => {
+  b.onclick = () => activarVista(b.dataset.view);
+});
+
+function activarVista(v){
+  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('on', x.dataset.view === v));
+  ['agenda','pacientes','chat'].forEach(x => $('v-' + x).classList.toggle('hide', x !== v));
+  $('titulo').textContent = v === 'agenda' ? 'Agenda' : v === 'pacientes' ? 'Pacientes' : 'Conversación';
+  if (v === 'chat') cargarChat();
+  if (v === 'pacientes') cargarPacientes();
+  history.replaceState(null, '', '#' + v);
+}
+
+/* ---------------- KPIs ---------------- */
+async function pintarKpis(){
+  const r = await jget('/api/crm/resumen');
+  $('kpis').innerHTML = [
+    ['Confirmadas', r.confirmadas, 'ok'],
+    ['Atendidas', r.completadas, ''],
+    ['Canceladas', r.canceladas, 'bad'],
+    ['Cupos libres', r.cupos_libres, ''],
+    ['Pacientes', r.pacientes, ''],
+  ].map(([t,n,c]) => `<span class="pill ${c}"><b>${n ?? '—'}</b>${t}</span>`).join('');
+}
+
+/* ---------------- agenda ---------------- */
+async function cargarAgenda(){
+  const medico = $('selMedico').value;
+  const fecha = $('fecha').value || hoyChile();
+  if (!medico) return;
+
+  $('tituloDia').textContent = 'Cupos del día';
+  slots = await jget(`/api/agenda?medico_id=${medico}&fecha=${fecha}`);
+
+  const ocupados = slots.filter(s => s.cita_id).length;
+  $('tituloDia').textContent =
+    `Cupos del día · ${ocupados} ocupados · ${slots.length - ocupados} libres`;
+
+  const filtro = ($('busca').value || '').toLowerCase().trim();
+  const visibles = filtro
+    ? slots.filter(s => (s.paciente || '').toLowerCase().includes(filtro))
+    : slots;
+
+  if (!visibles.length){
+    $('agenda').innerHTML = `<div class="vacio">
+      ${filtro ? 'Ningún paciente coincide con el filtro.' : 'Sin cupos este día.'}
+      ${filtro ? '' : '<br><button class="btn" style="margin-top:12px" onclick="siguienteDia()">Ir al próximo día con agenda</button>'}
+    </div>`;
+    return;
+  }
+
+  $('agenda').innerHTML = visibles.map(s => {
+    const ocupado = !!s.cita_id;
+    const sel = seleccion === s.horario_id ? 'sel' : '';
+    const acciones = ocupado
+      ? `<div class="acts">
+           ${s.estado === 'confirmada'
+             ? `<button class="ico" title="Marcar atendida" onclick="event.stopPropagation();completar(${s.cita_id})">✓</button>
+                <button class="ico" title="Mover a otro cupo" onclick="event.stopPropagation();mover(${s.cita_id},${s.horario_id})">⇄</button>
+                <button class="ico" title="Cancelar" onclick="event.stopPropagation();cancelar(${s.cita_id})">✕</button>`
+             : ''}
+         </div>`
+      : `<div class="acts"><button class="ico go" onclick="event.stopPropagation();agendar(${s.horario_id})">Agendar</button></div>`;
+    const chip = ocupado
+      ? `<span class="chip c-${s.estado}">${s.estado}</span>`
+      : '<span class="chip c-libre">libre</span>';
+    return `<div class="row ${ocupado ? 'busy' : 'free'} ${sel}" data-h="${s.horario_id}">
+      <div class="h">${hora(s.inicio)}</div>
+      <div class="who">
+        <b>${ocupado ? (s.paciente || 'Paciente') : 'Disponible'}</b>
+        <span>${ocupado ? (s.telefono || s.email || 'sin contacto') + ' · ' + (s.canal || '') : '30 min'}</span>
+      </div>
+      ${chip}
+      ${acciones}
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('#agenda .row').forEach(fila => {
+    fila.onclick = () => {
+      const h = Number(fila.dataset.h);
+      seleccion = seleccion === h ? null : h;
+      pintarDetalle();
+      document.querySelectorAll('#agenda .row').forEach(f => {
+        f.classList.toggle('sel', Number(f.dataset.h) === seleccion);
+      });
+    };
+  });
+}
+
+function pintarDetalle(){
+  const s = slots.find(x => x.horario_id === seleccion);
+
+  if (!s){
+    const ocup = slots.filter(x => x.cita_id);
+    const conf = ocup.filter(x => x.estado === 'confirmada').length;
+    const aten = ocup.filter(x => x.estado === 'completada').length;
+    const prox = ocup.find(x => x.estado === 'confirmada');
+    $('detalle').innerHTML = `
+      <div class="k">Resumen del día</div>
+      <div class="v" style="font-weight:600">${largo($('fecha').value || hoyChile())}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div><div class="k">Ocupados</div><div style="font-size:19px;font-weight:600">${ocup.length}</div></div>
+        <div><div class="k">Libres</div><div style="font-size:19px;font-weight:600">${slots.length - ocup.length}</div></div>
+        <div><div class="k">Confirmadas</div><div style="font-size:19px;font-weight:600;color:var(--ok)">${conf}</div></div>
+        <div><div class="k">Atendidas</div><div style="font-size:19px;font-weight:600;color:var(--accent)">${aten}</div></div>
+      </div>
+      ${prox ? `<div class="k">Próxima cita</div>
+        <div class="v">${hora(prox.inicio)} · ${prox.paciente || 'Paciente'}</div>` : ''}
+      <div style="font-size:11.5px;color:var(--mut2);line-height:1.6;margin-top:14px">
+        Haz clic en un cupo para ver la ficha del paciente y sus acciones.
+      </div>`;
+    return;
+  }
+
+  if (!s.cita_id){
+    $('detalle').innerHTML = `
+      <div class="k">Cupo libre</div>
+      <div class="v" style="font-size:15px;font-weight:600">${hora(s.inicio)} – ${hora(s.fin)}</div>
+      <div class="k">Fecha</div><div class="v">${largo($('fecha').value)}</div>
+      <div class="acts2">
+        <button class="btn pri" onclick="agendar(${s.horario_id})">Agendar en este cupo</button>
+      </div>`;
+    return;
+  }
+
+  $('detalle').innerHTML = `
+    <div class="k">Paciente</div>
+    <div class="v" style="font-size:15px;font-weight:600">${s.paciente || 'Paciente'}</div>
+    <div class="k">Contacto</div><div class="v">${s.telefono || '—'}${s.email ? '<br>' + s.email : ''}</div>
+    <div class="k">Horario</div><div class="v">${largo($('fecha').value)} · ${hora(s.inicio)} hrs</div>
+    <div class="k">Estado</div><div class="v"><span class="chip c-${s.estado}">${s.estado}</span>
+      <span style="color:var(--mut2);font-size:11.5px;margin-left:6px">canal ${s.canal || '—'}</span></div>
+    <div class="acts2">
+      ${s.estado === 'confirmada' ? `
+        <button class="btn pri" onclick="completar(${s.cita_id})">Marcar como atendida</button>
+        <button class="btn" onclick="mover(${s.cita_id}, ${s.horario_id})">Mover a otro cupo</button>
+        <button class="btn dan" onclick="cancelar(${s.cita_id})">Cancelar la cita</button>` : ''}
+    </div>`;
+}
+
+/* ---------------- acciones ---------------- */
+window.completar = async (id) => {
+  try{ await jpost(`/api/citas/${id}/completar`); seleccion = null; refrescar(); }
+  catch(e){ alert('No se pudo marcar como atendida: ' + e.message); }
+};
+
+window.cancelar = async (id) => {
+  if (!confirm('¿Cancelar esta cita? El cupo queda libre.')) return;
+  try{ await jpost(`/api/citas/${id}/cancelar`, {}); seleccion = null; refrescar(); }
+  catch(e){ alert('No se pudo cancelar: ' + e.message); }
+};
+
+window.agendar = (horarioId) => {
+  const s = slots.find(x => x.horario_id === horarioId);
+  abrir('Agendar hora', `${largo($('fecha').value)} · ${hora(s.inicio)} hrs`, [
+    {id:'mNombre', label:'Nombre del paciente', tipo:'text'},
+    {id:'mTel', label:'Teléfono', tipo:'tel'},
+    {id:'mEmail', label:'Correo (opcional)', tipo:'email'},
+  ], async () => {
+    const nombre = $('mNombre').value.trim();
+    const telefono = $('mTel').value.trim();
+    const email = $('mEmail').value.trim();
+    if (!nombre) throw new Error('Falta el nombre');
+    if (!telefono && !email) throw new Error('Falta teléfono o correo');
+    await jpost('/api/citas', {horario_id: horarioId, nombre, telefono: telefono || null,
+      email: email || null, canal:'recepcion'});
+    seleccion = null;
+  });
+};
+
+window.mover = (citaId, actual) => {
+  const libres = slots.filter(s => !s.cita_id && s.horario_id !== actual);
+  if (!libres.length) return alert('No quedan cupos libres ese día para mover la cita.');
+  abrir('Mover cita', 'Elige el nuevo horario del mismo día', [
+    {id:'mSlot', label:'Nuevo horario', tipo:'select',
+      opciones: libres.map(s => ({valor:s.horario_id, texto:hora(s.inicio)}))},
+  ], async () => {
+    await jpost(`/api/citas/${citaId}/reagendar`, {nuevo_horario_id: Number($('mSlot').value)});
+    seleccion = null;
+  });
+};
+
+/* ---------------- modal ---------------- */
+function abrir(titulo, sub, campos, fn){
+  $('mTitulo').textContent = titulo;
+  $('mSub').textContent = sub;
+  $('mCampos').innerHTML = campos.map(c => {
+    const control = c.tipo === 'select'
+      ? `<select id="${c.id}">${c.opciones.map(o => `<option value="${o.valor}">${o.texto}</option>`).join('')}</select>`
+      : `<input type="${c.tipo}" id="${c.id}">`;
+    return `<div><label>${c.label}</label>${control}</div>`;
+  }).join('') + '<div class="err" id="mErr"></div>';
+  accion = fn;
+  $('overlay').classList.add('on');
+  const p = $('mCampos').querySelector('input,select');
+  if (p) p.focus();
+}
+
+function cerrar(){ $('overlay').classList.remove('on'); accion = null; }
+$('mCancelar').onclick = cerrar;
+$('overlay').onclick = e => { if (e.target === $('overlay')) cerrar(); };
+$('mOk').onclick = async () => {
+  if (!accion) return;
+  $('mErr').textContent = '';
+  try{ await accion(); cerrar(); refrescar(); }
+  catch(e){ $('mErr').textContent = e.message; }
+};
+
+/* ---------------- pacientes ---------------- */
+let cachePac = [];
+async function cargarPacientes(){
+  const q = $('buscaPac').value.trim();
+  cachePac = await jget('/api/pacientes' + (q ? '?q=' + encodeURIComponent(q) : ''));
+  $('tablaPac').innerHTML = cachePac.length ? cachePac.map(p => `
+    <tr onclick="verPaciente(${p.id})">
+      <td style="font-weight:500">${p.nombre}</td>
+      <td style="color:var(--mut)">${p.telefono || p.email || '—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${p.citas_activas}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--mut2)">${p.citas_total ?? '—'}</td>
+    </tr>`).join('') : '<tr><td colspan="4" class="vacio">Sin resultados</td></tr>';
+}
+
+window.verPaciente = async (id) => {
+  const p = cachePac.find(x => x.id === id);
+  const citas = await jget(`/api/pacientes/${id}/citas`);
+  $('detalle').innerHTML = `
+    <div class="k">Paciente</div><div class="v" style="font-weight:600">${p.nombre}</div>
+    <div class="k">Contacto</div><div class="v">${p.telefono || '—'}${p.email ? '<br>' + p.email : ''}</div>
+    <div class="k">Citas activas</div>
+    <div class="v" style="line-height:1.9">${citas.length
+      ? citas.map(c => `${fechaCorta(c.inicio)} · ${hora(c.inicio)} — ${c.especialidad}`).join('<br>')
+      : 'Ninguna'}</div>`;
+};
+
+/* ---------------- chat ---------------- */
+async function cargarChat(){
+  const msgs = (await jget('/api/conversaciones?limite=30')).reverse();
+  if (!msgs.length){ $('chat').innerHTML = '<div class="vacio">Aún no hay conversaciones.</div>'; return; }
+  $('chat').innerHTML = msgs.map(m => `
+    <div class="b ${m.rol === 'user' ? 'user' : 'bot'}">
+      ${(m.contenido || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+      <span class="m">${m.rol === 'user' ? (m.telefono || 'paciente') : 'MediFlow AI'} ·
+        ${hora(m.creada_en)} ${fechaCorta(m.creada_en)}</span>
+    </div>`).join('');
+  $('chat').scrollTop = $('chat').scrollHeight;
+}
+
+/* ---------------- fechas ---------------- */
+function moverDia(delta){
+  const base = new Date(($('fecha').value || hoyChile()) + 'T12:00:00');
+  $('fecha').value = new Date(base.getTime() + delta * 86400000)
+    .toLocaleDateString('en-CA', {timeZone:TZ});
+  seleccion = null;
+  cargarAgenda().then(pintarDetalle);
+}
+
+window.siguienteDia = async () => {
+  const base = new Date(($('fecha').value || hoyChile()) + 'T12:00:00');
+  for (let i = 1; i <= 15; i++){
+    const iso = new Date(base.getTime() + i * 86400000).toLocaleDateString('en-CA', {timeZone:TZ});
+    const r = await jget(`/api/agenda?medico_id=${$('selMedico').value}&fecha=${iso}`);
+    if (r.length){ $('fecha').value = iso; await cargarAgenda(); return; }
+  }
+  alert('No hay cupos en los próximos 15 días para este médico.');
+};
+
+async function primerDia(medicoId){
+  const base = new Date();
+  for (let i = 0; i < 15; i++){
+    const iso = new Date(base.getTime() + i * 86400000).toLocaleDateString('en-CA', {timeZone:TZ});
+    try{
+      const r = await jget(`/api/agenda?medico_id=${medicoId}&fecha=${iso}`);
+      if (r.length) return iso;
+    }catch(e){ break; }
+  }
+  return hoyChile();
+}
+
+/* ---------------- arranque ---------------- */
+async function refrescar(){
+  try{
+    await Promise.all([pintarKpis(), cargarAgenda(), cargarPacientes(),
+                       $('v-chat').classList.contains('hide') ? null : cargarChat()]);
+    pintarDetalle();
+    $('sub').textContent = largo($('fecha').value || hoyChile());
+    $('sync').textContent = 'sincronizado ' + new Date().toLocaleTimeString('es-CL',{hour12:false});
+  }catch(e){
+    $('sync').textContent = 'sin conexión';
+  }
+}
+
+async function iniciar(){
+  medicos = await jget('/api/medicos');
+  $('selMedico').innerHTML = medicos.map(m =>
+    `<option value="${m.id}">${m.nombre} — ${m.especialidad}</option>`).join('');
+  $('fecha').value = await primerDia($('selMedico').value);
+  await refrescar();
+  const inicial = (location.hash || '').replace('#','');
+  if (['pacientes','chat'].includes(inicial)) activarVista(inicial);
+  setInterval(refrescar, 8000);
+}
+
+$('selMedico').onchange = () => { seleccion = null; cargarAgenda().then(pintarDetalle); };
+$('fecha').onchange = () => { seleccion = null; cargarAgenda().then(pintarDetalle); };
+$('btnHoy').onclick = () => { $('fecha').value = hoyChile(); seleccion = null; cargarAgenda().then(pintarDetalle); };
+$('prevDia').onclick = () => moverDia(-1);
+$('nextDia').onclick = () => moverDia(1);
+let t1; $('busca').oninput = () => { clearTimeout(t1); t1 = setTimeout(cargarAgenda, 200); };
+let t2; $('buscaPac').oninput = () => { clearTimeout(t2); t2 = setTimeout(cargarPacientes, 250); };
+
+iniciar();
+</script>
+</body>
+</html>

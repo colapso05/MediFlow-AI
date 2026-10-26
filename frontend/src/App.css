@@ -161,6 +161,22 @@ button, input {
   white-space: pre-wrap;
 }
 
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.tool-chip {
+  background: #12355b;
+  color: #dce9f6;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+}
+
 .checks {
   color: #53bdeb;
   display: block;

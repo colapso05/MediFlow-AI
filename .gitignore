@@ -1,3 +1,14 @@
 .venv/
 .env
 __pycache__/
+*.pyc
+
+# Material interno de trabajo (no se entrega ni se sube)
+_interno/
+
+# Frontend
+frontend/node_modules/
+frontend/*.log
+
+# Logs y respaldos
+*.log

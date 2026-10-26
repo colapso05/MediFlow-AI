@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "";   // mismo origen: la API sirve también el frontend compilado
+const TELEFONO = "+56911110009";
 
 export default function App() {
   const [mensajes, setMensajes] = useState([
@@ -46,16 +47,27 @@ export default function App() {
     setCargando(true);
 
     try {
-      const respuesta = await fetch(`${API_URL}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mensaje,
-          historial,
-        }),
-      });
+      const pedir = () =>
+        fetch(`${API_URL}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mensaje,
+            historial,
+            telefono: TELEFONO,
+          }),
+        });
+
+      // Si la API está arrancando o se cayó un instante, se reintenta una vez.
+      let respuesta;
+      try {
+        respuesta = await pedir();
+      } catch (red) {
+        await new Promise((r) => setTimeout(r, 1500));
+        respuesta = await pedir();
+      }
 
       if (!respuesta.ok) {
         throw new Error(`Error HTTP ${respuesta.status}`);
@@ -68,6 +80,7 @@ export default function App() {
         {
           role: "assistant",
           content: datos.respuesta,
+          herramientas: datos.herramientas || [],
         },
       ]);
     } catch (error) {
@@ -78,7 +91,7 @@ export default function App() {
         {
           role: "assistant",
           content:
-            "Lo siento, no pude conectar con el servidor. Intenta nuevamente.",
+            "No pude conectar con el servidor. Revisa que la ventana \"MediFlow API\" siga abierta y vuelve a intentarlo.",
         },
       ]);
     } finally {
@@ -119,7 +132,7 @@ export default function App() {
 
           <div className="chat-contact">
             <strong>MediFlow AI</strong>
-            <span>Asistente virtual · Clínica MediFlow</span>
+            <span>Asistente virtual · {TELEFONO}</span>
           </div>
 
           <MoreVertical size={21} />
@@ -139,6 +152,15 @@ export default function App() {
             >
               <div className="message-content">
                 {mensaje.content}
+                {mensaje.herramientas?.length > 0 && (
+                  <span className="tools">
+                    {mensaje.herramientas.map((h) => (
+                      <span key={h} className="tool-chip">
+                        ⚙ {h}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </div>
 
               {mensaje.role === "user" && (
