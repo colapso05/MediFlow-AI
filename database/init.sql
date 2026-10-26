@@ -17,6 +17,7 @@ CREATE TABLE medicos (
 CREATE TABLE pacientes (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(150) NOT NULL,
+    rut VARCHAR(12) UNIQUE,
     email VARCHAR(150) UNIQUE,
     telefono VARCHAR(30),
     verificado BOOLEAN NOT NULL DEFAULT FALSE
@@ -108,15 +109,15 @@ INSERT INTO medicos (nombre, especialidad_id) VALUES
 ('Dr. Cristóbal Silva', 7),
 ('Dra. Josefa Contreras', 8);
 
-INSERT INTO pacientes (nombre, email, telefono, verificado) VALUES
-('Paciente Demo Uno', 'paciente1@example.com', '+56911110001', TRUE),
-('Paciente Demo Dos', 'paciente2@example.com', '+56911110002', TRUE),
-('María José Fuentes', 'mj.fuentes@example.com', '+56911110003', FALSE),
-('Rodrigo Peña', 'rodrigo.pena@example.com', '+56911110004', FALSE),
-('Carolina Vergara', 'c.vergara@example.com', '+56911110005', FALSE),
-('Luis Alarcón', 'luis.alarcon@example.com', '+56911110006', FALSE),
-('Fernanda Ibáñez', 'f.ibanez@example.com', '+56911110007', FALSE),
-('Jorge Navarrete', 'j.navarrete@example.com', '+56911110008', FALSE);
+INSERT INTO pacientes (nombre, rut, email, telefono, verificado) VALUES
+('Paciente Demo Uno', '16903812-0', 'paciente1@example.com', '+56911110001', TRUE),
+('Paciente Demo Dos', '18818860-5', 'paciente2@example.com', '+56911110002', TRUE),
+('María José Fuentes', '26289515-7', 'mj.fuentes@example.com', '+56911110003', FALSE),
+('Rodrigo Peña', '17231261-6', 'rodrigo.pena@example.com', '+56911110004', FALSE),
+('Carolina Vergara', '23154570-0', 'c.vergara@example.com', '+56911110005', FALSE),
+('Luis Alarcón', '21785801-1', 'luis.alarcon@example.com', '+56911110006', FALSE),
+('Fernanda Ibáñez', '24092469-2', 'f.ibanez@example.com', '+56911110007', FALSE),
+('Jorge Navarrete', '16503194-6', 'j.navarrete@example.com', '+56911110008', FALSE);
 
 -- Agenda de las próximas dos semanas: días de semana, 09:00-12:30 y 15:00-18:00.
 INSERT INTO horarios (medico_id, inicio, fin)

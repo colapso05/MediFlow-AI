@@ -197,6 +197,30 @@
       <div class="pills" id="kpis"></div>
     </div>
 
+    <div class="card" style="margin:0 24px 16px">
+      <h2 style="display:flex;align-items:baseline;gap:10px">Guardrails del agente
+        <span style="font-weight:400;color:var(--mut2);font-size:11.5px;margin-left:auto">
+          bloqueos desde el arranque de la API</span></h2>
+      <div style="display:flex;gap:34px;align-items:flex-start;padding:14px 18px;flex-wrap:wrap">
+        <div>
+          <div id="gEntrada" style="font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1">0</div>
+          <div style="color:var(--mut);font-size:11.5px;margin-top:3px">Intentos de manipulación<br>bloqueados antes del modelo</div>
+        </div>
+        <div>
+          <div id="gSalida" style="font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1">0</div>
+          <div style="color:var(--mut);font-size:11.5px;margin-top:3px">Respuestas filtradas<br>y reemplazadas</div>
+        </div>
+        <div>
+          <div id="gVacia" style="font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1">0</div>
+          <div style="color:var(--mut);font-size:11.5px;margin-top:3px">Respuestas vacías<br>evitadas</div>
+        </div>
+        <div style="flex:1;min-width:240px;border-left:1px solid var(--line2);padding-left:18px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);margin-bottom:4px">Último intento</div>
+          <div id="gUltimo" style="font-size:12px;color:var(--mut);line-height:1.5">sin intentos todavía</div>
+        </div>
+      </div>
+    </div>
+
     <section id="v-agenda">
       <div class="toolbar">
         <select id="selMedico"></select>
@@ -225,10 +249,10 @@
 
     <section id="v-pacientes" class="hide">
       <div class="toolbar">
-        <input type="text" class="search" id="buscaPac" placeholder="Buscar por nombre o teléfono…" style="width:300px">
+        <input type="text" class="search" id="buscaPac" placeholder="Buscar por nombre, RUT o teléfono…" style="width:300px">
       </div>
       <div class="card">
-        <table><thead><tr><th>Paciente</th><th>Contacto</th><th style="text-align:right">Citas activas</th><th style="text-align:right">Histórico</th></tr></thead>
+        <table><thead><tr><th>Paciente</th><th>RUT</th><th>Contacto</th><th style="text-align:right">Citas activas</th><th style="text-align:right">Histórico</th></tr></thead>
           <tbody id="tablaPac"></tbody></table>
       </div>
     </section>
@@ -441,15 +465,18 @@ window.agendar = (horarioId) => {
   const s = slots.find(x => x.horario_id === horarioId);
   abrir('Agendar hora', `${largo($('fecha').value)} · ${hora(s.inicio)} hrs`, [
     {id:'mNombre', label:'Nombre del paciente', tipo:'text'},
+    {id:'mRut', label:'RUT (obligatorio)', tipo:'text'},
     {id:'mTel', label:'Teléfono', tipo:'tel'},
     {id:'mEmail', label:'Correo (opcional)', tipo:'email'},
   ], async () => {
     const nombre = $('mNombre').value.trim();
+    const rut = $('mRut').value.trim();
     const telefono = $('mTel').value.trim();
     const email = $('mEmail').value.trim();
     if (!nombre) throw new Error('Falta el nombre');
+    if (!rut) throw new Error('Falta el RUT: es obligatorio para agendar');
     if (!telefono && !email) throw new Error('Falta teléfono o correo');
-    await jpost('/api/citas', {horario_id: horarioId, nombre, telefono: telefono || null,
+    await jpost('/api/citas', {horario_id: horarioId, nombre, rut, telefono: telefono || null,
       email: email || null, canal:'recepcion'});
     seleccion = null;
   });
@@ -494,6 +521,9 @@ $('mOk').onclick = async () => {
 };
 
 /* ---------------- pacientes ---------------- */
+const fmtRut = r => r ? r.replace(/^(\d+)-(\w)$/, (m, c, d) =>
+  c.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + d) : '—';
+
 let cachePac = [];
 async function cargarPacientes(){
   const q = $('buscaPac').value.trim();
@@ -501,10 +531,11 @@ async function cargarPacientes(){
   $('tablaPac').innerHTML = cachePac.length ? cachePac.map(p => `
     <tr onclick="verPaciente(${p.id})">
       <td style="font-weight:500">${p.nombre}</td>
+      <td style="font-variant-numeric:tabular-nums;color:var(--mut)">${fmtRut(p.rut)}</td>
       <td style="color:var(--mut)">${p.telefono || p.email || '—'}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${p.citas_activas}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--mut2)">${p.citas_total ?? '—'}</td>
-    </tr>`).join('') : '<tr><td colspan="4" class="vacio">Sin resultados</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="5" class="vacio">Sin resultados</td></tr>';
 }
 
 window.verPaciente = async (id) => {
@@ -512,6 +543,7 @@ window.verPaciente = async (id) => {
   const citas = await jget(`/api/pacientes/${id}/citas`);
   $('detalle').innerHTML = `
     <div class="k">Paciente</div><div class="v" style="font-weight:600">${p.nombre}</div>
+    <div class="k">RUT</div><div class="v">${fmtRut(p.rut)}</div>
     <div class="k">Contacto</div><div class="v">${p.telefono || '—'}${p.email ? '<br>' + p.email : ''}</div>
     <div class="k">Citas activas</div>
     <div class="v" style="line-height:1.9">${citas.length
@@ -576,15 +608,33 @@ async function refrescar(){
   }
 }
 
+async function cargarGuardrails(){
+  try{
+    const g = await jget('/api/guardrails');
+    $('gEntrada').textContent = g.bloqueos_entrada;
+    $('gSalida').textContent = g.bloqueos_salida;
+    $('gVacia').textContent = g.respuestas_vacias_corregidas;
+    const u = (g.ultimos || [])[0];
+    if (u) {
+      const texto = (u.detalle.split('::').pop() || '').trim().slice(0, 110);
+      $('gUltimo').textContent = (u.tipo === 'entrada' ? 'Entrada · ' : u.tipo === 'salida' ? 'Salida · ' : 'Vacía · ') + texto;
+    } else {
+      $('gUltimo').textContent = 'sin intentos todavía';
+    }
+  }catch(e){ /* el CRM sigue funcionando aunque falle este panel */ }
+}
+
 async function iniciar(){
   medicos = await jget('/api/medicos');
   $('selMedico').innerHTML = medicos.map(m =>
     `<option value="${m.id}">${m.nombre} — ${m.especialidad}</option>`).join('');
   $('fecha').value = await primerDia($('selMedico').value);
   await refrescar();
+  await cargarGuardrails();
   const inicial = (location.hash || '').replace('#','');
   if (['pacientes','chat'].includes(inicial)) activarVista(inicial);
   setInterval(refrescar, 8000);
+  setInterval(cargarGuardrails, 10000);
 }
 
 $('selMedico').onchange = () => { seleccion = null; cargarAgenda().then(pintarDetalle); };

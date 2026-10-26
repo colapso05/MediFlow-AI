@@ -55,6 +55,7 @@ class ConexionPrueba:
                         nombre="Paciente Demo",
                         email="demo@example.com",
                         telefono=None,
+                        rut=None,
                     ),
                 }
             fila = self.cita_idempotente

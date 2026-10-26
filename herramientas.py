@@ -14,10 +14,13 @@ from backend.agenda import consultar_horarios
 from backend.reservas import (
     CitaNoEncontrada,
     HorarioNoDisponible,
+    RutDeOtroPaciente,
+    RutInvalido,
     cancelar_cita,
     reagendar_cita,
     reservar_cita,
 )
+from backend.rut import formatear_rut, validar_rut
 from backend.servicios import citas_del_paciente, obtener_paciente_por_telefono
 
 load_dotenv()
@@ -130,13 +133,16 @@ def buscar_horarios(
 def reservar(
     horario_id: int,
     nombre: str,
+    rut: str,
     email: str | None = None,
 ) -> dict:
     """Registra y confirma la cita del paciente en el horario indicado.
 
-    Requiere el horario_id que devolvió buscar_horarios, el nombre completo
-    del paciente y, si lo tiene, su correo. El teléfono se toma de la
-    conversación de WhatsApp. Devuelve el identificador de la cita creada.
+    Requiere el horario_id que devolvió buscar_horarios, el nombre completo del
+    paciente y su RUT (el RUT es obligatorio para agendar en Chile). Acepta el
+    RUT con o sin puntos y con o sin guion: 12.345.678-5, 12345678-5 o
+    123456785. El teléfono se toma de la conversación de WhatsApp. Si el RUT no
+    es válido, la herramienta lo indica y no agenda: pide el dato de nuevo.
     """
 
     telefono = TELEFONO_ACTUAL.get()
@@ -147,11 +153,19 @@ def reservar(
             "error": "No hay un número de contacto asociado a esta conversación.",
         }
 
+    rut_limpio, error_rut = validar_rut(rut)
+    if error_rut:
+        return {
+            "ok": False,
+            "campo": "rut",
+            "error": f"El RUT no se pudo usar. {error_rut} Pídelo otra vez al paciente.",
+        }
+
     # Clave determinista: si el modelo repite la misma reserva, la base
     # devuelve la misma cita en lugar de duplicarla.
     clave = uuid5(
         NAMESPACE_URL,
-        f"mediflow|{telefono}|{horario_id}|{nombre.strip().lower()}",
+        f"mediflow|{telefono}|{horario_id}|{nombre.strip().lower()}|{rut_limpio}",
     )
 
     try:
@@ -174,6 +188,7 @@ def reservar(
                 nombre=nombre,
                 email=email_efectivo,
                 telefono=telefono,
+                rut=rut_limpio,
                 idempotency_key=clave,
             )
             detalle = conexion.execute(
@@ -201,6 +216,18 @@ def reservar(
             "ok": False,
             "error": "Ese horario ya no está disponible. Ofrece otro al paciente.",
         }
+    except RutInvalido as error:
+        return {
+            "ok": False,
+            "campo": "rut",
+            "error": f"{error} Pídelo otra vez al paciente.",
+        }
+    except RutDeOtroPaciente as error:
+        return {
+            "ok": False,
+            "campo": "rut",
+            "error": f"{error} Derivar a recepción humana.",
+        }
     except Exception as error:  # noqa: BLE001 - se informa al agente, no se propaga
         print("[TOOL reservar]", type(error).__name__, flush=True)
         return {
@@ -208,7 +235,12 @@ def reservar(
             "error": "No fue posible registrar la cita en este momento.",
         }
 
-    return {"ok": True, "cita": _formatear_cita(detalle)}
+    return {
+        "ok": True,
+        "cita": _formatear_cita(detalle),
+        "paciente": nombre.strip(),
+        "rut": formatear_rut(rut_limpio),
+    }
 
 
 @tool
@@ -234,6 +266,7 @@ def mis_citas() -> dict:
     return {
         "ok": True,
         "paciente": paciente["nombre"],
+        "rut": formatear_rut(paciente.get("rut")),
         "citas": [_formatear_cita(cita) for cita in citas],
     }
 

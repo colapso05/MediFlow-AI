@@ -135,14 +135,25 @@ En Windows, `detener.cmd` hace lo mismo y cierra la ventana de la API.
 
 1. El paciente pide una hora (por especialidad o por médico).
 2. El agente consulta especialidades, médicos y **horarios libres reales**.
-3. Repite la opción elegida y pide confirmación antes de escribir nada.
-4. Llama a `reservar`: la base bloquea el cupo y garantiza una sola cita activa por horario.
-5. Devuelve el número de cita, el médico, la fecha y la hora.
-6. Puede `reagendar` a otro cupo del mismo médico o `cancelar`, siempre sobre las citas del
+3. Pide el **nombre completo y el RUT**. El RUT se normaliza y se valida con el módulo 11
+   (`backend/rut.py`): se acepta con puntos, sin puntos, con o sin guion y con `K` minúscula.
+   Si el dígito verificador no calza, no se escribe nada y el agente lo pide de nuevo.
+4. Repite la opción elegida y pide confirmación antes de escribir nada.
+5. Llama a `reservar`: la base bloquea el cupo y garantiza una sola cita activa por horario.
+6. Devuelve el número de cita, el médico, la fecha, la hora y el RUT registrado.
+7. Puede `reagendar` a otro cupo del mismo médico o `cancelar`, siempre sobre las citas del
    teléfono que está conversando.
 
 La identidad del paciente se fija en el servidor con un `ContextVar` a partir del número de
-WhatsApp: el modelo no puede cambiarla ni consultar citas de terceros.
+WhatsApp: el modelo no puede cambiarla ni consultar citas de terceros. El RUT es único en la
+tabla `pacientes`, así que no puede haber dos fichas para la misma persona; si un RUT aparece
+asociado a otro número, la reserva se deriva a recepción en lugar de mezclar historiales.
+
+**Si ya tienes la base creada de antes** (sin la columna `rut`), aplica la migración:
+
+```bash
+.venv\Scripts\python.exe database\migracion_rut.py
+```
 
 ---
 
@@ -182,14 +193,15 @@ WhatsApp: el modelo no puede cambiarla ni consultar citas de terceros.
 
 ```bash
 # Linux / macOS
-.venv/bin/python -m unittest test_agenda.py test_reservas.py -v
+.venv/bin/python -m unittest test_agenda.py test_reservas.py test_rut.py -v
 
 # Windows
-.venv\Scripts\python.exe -m unittest test_agenda.py test_reservas.py -v
+.venv\Scripts\python.exe -m unittest test_agenda.py test_reservas.py test_rut.py -v
 ```
 
-Once pruebas unitarias sobre el motor de agenda y reservas: cupo ocupado, idempotencia,
-cancelación de una cita ajena y reagendamiento.
+28 pruebas: motor de agenda y reservas (cupo ocupado, idempotencia, cancelación de una cita
+ajena, reagendamiento) y normalización y validación del RUT con módulo 11 (formatos con
+puntos, sin puntos, sin guion, `K` y rechazos).
 
 ### Verificación adversarial del agente
 

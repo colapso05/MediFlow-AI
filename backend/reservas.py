@@ -4,6 +4,8 @@ from uuid import UUID
 
 import psycopg
 
+from backend.rut import validar_rut
+
 
 class HorarioNoDisponible(Exception):
     """El cupo no existe, ya pasó o ya está reservado."""
@@ -17,15 +19,24 @@ class ClaveIdempotenciaEnConflicto(Exception):
     """La clave ya fue usada para una solicitud diferente."""
 
 
+class RutInvalido(Exception):
+    """El RUT no cumple el módulo 11 o no viene informado."""
+
+
+class RutDeOtroPaciente(Exception):
+    """El RUT ya está asociado a otra ficha o el número ya tiene otro RUT."""
+
+
 def _huella_reserva(
     *,
     horario_id: int,
     nombre: str,
     email: str | None,
     telefono: str | None,
+    rut: str | None = None,
 ) -> str:
     solicitud = json.dumps(
-        [horario_id, nombre, email, telefono],
+        [horario_id, nombre, email, telefono, rut],
         ensure_ascii=True,
         separators=(",", ":"),
     )
@@ -66,7 +77,76 @@ def _obtener_o_crear_paciente(
     nombre: str,
     email: str | None,
     telefono: str | None,
+    rut: str | None = None,
 ) -> int:
+    """Resuelve la ficha del paciente.
+
+    Con RUT, la identidad manda el RUT y el teléfono solo confirma: si la ficha
+    del número ya tiene otro RUT, o el RUT ya está en otra ficha, se rechaza la
+    reserva en vez de mezclar historiales clínicos.
+    """
+    if rut:
+        ficha_telefono = conexion.execute(
+            """
+            SELECT id, rut, nombre
+            FROM pacientes
+            WHERE telefono = %s
+            ORDER BY id
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (telefono,),
+        ).fetchone()
+
+        if ficha_telefono:
+            if ficha_telefono["rut"] and ficha_telefono["rut"] != rut:
+                raise RutDeOtroPaciente(
+                    "Este número ya tiene una ficha con otro RUT. "
+                    "Recepción debe verificarlo antes de agendar."
+                )
+            if not ficha_telefono["rut"]:
+                ocupado = conexion.execute(
+                    "SELECT 1 FROM pacientes WHERE rut = %s AND id <> %s",
+                    (rut, ficha_telefono["id"]),
+                ).fetchone()
+                if ocupado:
+                    raise RutDeOtroPaciente(
+                        "Ese RUT ya está registrado en otra ficha."
+                    )
+                conexion.execute(
+                    "UPDATE pacientes SET rut = %s WHERE id = %s",
+                    (rut, ficha_telefono["id"]),
+                )
+            return ficha_telefono["id"]
+
+        otra_ficha = conexion.execute(
+            "SELECT id, telefono FROM pacientes WHERE rut = %s",
+            (rut,),
+        ).fetchone()
+        if otra_ficha:
+            raise RutDeOtroPaciente(
+                "Ese RUT ya está registrado con otro número. "
+                "Por seguridad, recepción debe verificarlo."
+            )
+
+        # El correo es único: si ya pertenece a otra ficha, no se duplica.
+        email_libre = None
+        if email:
+            en_uso = conexion.execute(
+                "SELECT 1 FROM pacientes WHERE email = %s", (email,)
+            ).fetchone()
+            email_libre = None if en_uso else email
+
+        fila = conexion.execute(
+            """
+            INSERT INTO pacientes (nombre, rut, email, telefono)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
+            (nombre, rut, email_libre, telefono),
+        ).fetchone()
+        return fila["id"]
+
     if email:
         paciente = conexion.execute(
             """
@@ -124,6 +204,7 @@ def reservar_cita(
     nombre: str,
     email: str | None = None,
     telefono: str | None = None,
+    rut: str | None = None,
     idempotency_key: UUID,
 ) -> dict:
     """Registra una cita confirmada con reintentos idempotentes."""
@@ -136,11 +217,17 @@ def reservar_cita(
     if not email and not telefono:
         raise ValueError("Se requiere un correo o teléfono de contacto")
 
+    if rut is not None:
+        rut, error = validar_rut(rut)
+        if error:
+            raise RutInvalido(error)
+
     huella = _huella_reserva(
         horario_id=horario_id,
         nombre=nombre,
         email=email,
         telefono=telefono,
+        rut=rut,
     )
 
     try:
@@ -195,6 +282,7 @@ def reservar_cita(
                 nombre=nombre,
                 email=email,
                 telefono=telefono,
+                rut=rut,
             )
             cita = conexion.execute(
                 """

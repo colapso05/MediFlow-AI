@@ -42,20 +42,26 @@ opciones concretas con fecha.
 Escribir:
 
 ```
-Me sirve la de las 15:00. Soy Demis Zúñiga, demis@example.com
+Me sirve la de las 15:00. Soy Demis Zúñiga, mi RUT es 12.345.678-5
 ```
 
-Qué debe pasar: repite la opción y **pide confirmación** antes de escribir. Luego:
+Qué debe pasar: el agente pide el RUT si no se lo dieron (es obligatorio para agendar),
+lo valida con el módulo 11 y **pide confirmación** antes de escribir. Luego:
 
 ```
 Sí, confirma
 ```
 
-Qué debe pasar: entrega el **número de cita**, médico, fecha y hora. Girar al CRM:
+> "El RUT no se guarda como lo escribe la persona: se normaliza y se valida con el módulo 11
+> en la puerta de escritura. Si el dígito verificador no calza, no toca la base y vuelve a
+> pedirlo. Y el RUT es único: no puede haber dos fichas para la misma persona."
+
+Qué debe pasar: entrega el **número de cita**, médico, fecha, hora y el RUT registrado. Girar al CRM:
 
 - Sube el contador **Confirmadas**.
 - En la **agenda del día**, en el médico elegido, el cupo aparece con el nombre del paciente,
   el teléfono y el canal `whatsapp`, y con los botones **Atendida / Mover / Cancelar**.
+- En **Pacientes**, la ficha aparece con la columna **RUT** (con puntos, aunque se haya escrito sin ellos).
 - En "Conversación del agente" queda el registro completo del diálogo.
 
 > "El CRM no está leyendo el chat: está leyendo la base de datos. Es el mismo modelo de dominio del
@@ -123,8 +129,9 @@ Mostrar `/docs` (Swagger) y decir:
 | ¿Dónde están las herramientas? | `herramientas.py` (`HERRAMIENTAS`, siete `@tool`) |
 | ¿Cómo evitan dos citas en el mismo cupo? | `backend/reservas.py` (`FOR UPDATE` + índice único parcial) |
 | ¿Dónde está la idempotencia? | `reservas.py` (huella SHA-256) y `herramientas.py` (UUID v5) |
+| ¿Cómo validan el RUT? | `backend/rut.py` (módulo 11, normalización y rechazos) + índice único en `database/init.sql` |
 | ¿Cómo se guarda la conversación? | tabla `conversaciones` en `database/init.sql` |
-| ¿Cuántos tests hay? | 11 unitarios: `python -m unittest test_agenda.py test_reservas.py` |
+| ¿Cuántos tests hay? | 28 unitarios: `python -m unittest test_agenda.py test_reservas.py test_rut.py` |
 
 ## Plan B
 

@@ -96,6 +96,7 @@ class MensajeChat(BaseModel):
 class NuevaCita(BaseModel):
     horario_id: int
     nombre: str
+    rut: str | None = None
     email: str | None = None
     telefono: str | None = None
     canal: str = "web"
@@ -316,6 +317,7 @@ def crear_cita(datos: NuevaCita):
                 nombre=datos.nombre,
                 email=datos.email,
                 telefono=datos.telefono,
+                rut=datos.rut,
                 idempotency_key=uuid4(),
             )
             conexion.execute(
@@ -420,7 +422,7 @@ def listar_pacientes(q: str | None = None):
         return conexion.execute(
             """
             SELECT
-                p.id, p.nombre, p.email, p.telefono, p.verificado,
+                p.id, p.nombre, p.rut, p.email, p.telefono, p.verificado,
                 count(c.id) FILTER (WHERE c.estado = 'confirmada') AS citas_activas,
                 count(c.id) AS citas_total,
                 max(c.creada_en) AS ultima_reserva
@@ -428,6 +430,7 @@ def listar_pacientes(q: str | None = None):
             LEFT JOIN citas c ON c.paciente_id = p.id
             WHERE (%(q)s::text IS NULL
                    OR p.nombre ILIKE '%%' || %(q)s || '%%'
+                   OR COALESCE(p.rut, '') ILIKE '%%' || %(q)s || '%%'
                    OR COALESCE(p.email, '') ILIKE '%%' || %(q)s || '%%'
                    OR COALESCE(p.telefono, '') ILIKE '%%' || %(q)s || '%%')
             GROUP BY p.id

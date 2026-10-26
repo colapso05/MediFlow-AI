@@ -295,7 +295,9 @@ Esto ya está probado: 20 ataques × 7 corridas = 140 turnos, con cero fugas, ce
 
 **Y si pregunta por la seguridad de la demo:** *"el chat limita cada conversación a su teléfono y los intentos de manipulación se bloquean antes de llegar al modelo; el CRM local no tiene login porque corre en el equipo, y en la arquitectura desplegada va detrás de ALB con autenticación y mTLS entre servicios"*. Esa frase es honesta y demuestra que sabes dónde está el límite.
 
-Puedes mostrar el contador de bloqueos en vivo: abre `http://127.0.0.1:8000/api/guardrails` y verás cuántos intentos se detuvieron.
+**Si pregunta por qué el agente pide el RUT** (en Chile siempre se pide para agendar): *"es la identidad del paciente. Se valida con el módulo 11 antes de escribir, se guarda normalizado y es única: no puede haber dos fichas para el mismo RUT. Si el dígito verificador no calza, el agente no agenda y lo pide de nuevo; si el RUT ya está en otro número, deriva a recepción"*.
+
+Puedes mostrar el contador de bloqueos en vivo: abre `http://127.0.0.1:8000/api/guardrails` y verás cuántos intentos se detuvieron. El CRM también lo muestra arriba, bajo el título del día.
 
 ### 10 · Cinco decisiones
 Qué se ve: la tabla de decisiones con la alternativa descartada y el motivo.

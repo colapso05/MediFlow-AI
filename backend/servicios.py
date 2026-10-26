@@ -23,7 +23,7 @@ def obtener_paciente_por_telefono(
 
     return conexion.execute(
         """
-        SELECT id, nombre, email, telefono, verificado
+        SELECT id, nombre, rut, email, telefono, verificado
         FROM pacientes
         WHERE telefono = %s
         ORDER BY id DESC
@@ -88,6 +88,7 @@ def listar_citas(
             c.creada_en,
             p.id AS paciente_id,
             p.nombre AS paciente,
+            p.rut,
             p.email,
             p.telefono,
             m.id AS medico_id,
