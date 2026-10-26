@@ -1,4 +1,5 @@
 
+import logging
 import os
 from contextlib import contextmanager
 from datetime import date
@@ -41,6 +42,17 @@ load_dotenv()
 
 ESTATICOS = Path(__file__).parent / "static"
 RAIZ = Path(__file__).resolve().parent.parent
+
+# Registro de fallos del agente en archivo: si algo falla durante una demo,
+# queda el rastro completo en logs/errores.log en vez de perderse en la consola.
+CARPETA_LOGS = RAIZ / "logs"
+CARPETA_LOGS.mkdir(exist_ok=True)
+registro = logging.getLogger("mediflow")
+if not registro.handlers:
+    manejador = logging.FileHandler(CARPETA_LOGS / "errores.log", encoding="utf-8")
+    manejador.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    registro.addHandler(manejador)
+    registro.setLevel(logging.INFO)
 
 app = FastAPI(
     title="MediFlow AI API",
@@ -157,6 +169,7 @@ def conversar(datos: MensajeChat):
             conexion.commit()
 
     except Exception as error:
+        registro.exception("Fallo al procesar el turno de %s: %s", telefono, error)
         print("[ERROR MEDIFLOW AI]", type(error).__name__, error, flush=True)
         raise HTTPException(
             status_code=502,

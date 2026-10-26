@@ -153,12 +153,28 @@ async function enviar() {
   pill.textContent = 'escribiendo…';
 
   try {
-    const r = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({mensaje: texto, historial, telefono: TELEFONO})
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    // Un reintento automático: si la API se está reiniciando o el proveedor
+    // tarda, el segundo intento suele pasar sin que el paciente note nada.
+    let r = null;
+    for (let intento = 1; intento <= 2; intento++) {
+      try {
+        r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({mensaje: texto, historial, telefono: TELEFONO})
+        });
+        if (r.ok) break;
+        if (r.status === 502 && intento === 1) {
+          await new Promise(t => setTimeout(t, 2000));
+          continue;
+        }
+        throw new Error('HTTP ' + r.status);
+      } catch (fallo) {
+        if (intento === 2) throw fallo;
+        await new Promise(t => setTimeout(t, 2000));
+      }
+    }
+
     const datos = await r.json();
 
     historial.push({role: 'user', content: texto});
@@ -167,7 +183,8 @@ async function enviar() {
     agregar(datos.respuesta, 'entrada', datos.herramientas || []);
     pill.textContent = 'agente activo';
   } catch (e) {
-    agregar('No pude responder en este momento. ¿Lo intentamos de nuevo?', 'entrada');
+    agregar('No pude conectar con el servidor. Revisa que la ventana '
+      + '"MediFlow API" siga abierta y vuelve a intentarlo.', 'entrada');
     pill.textContent = 'sin conexión';
     console.error(e);
   } finally {

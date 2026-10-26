@@ -19,6 +19,24 @@ Lo que hace **difícil** esto no es el chat. Es lo que hay detrás:
 
 La arquitectura de la EP2 responde a esos cuatro problemas. Eso es lo que estás defendiendo.
 
+### Ojo: esas cuatro preguntas son el gancho, no el índice
+
+La presentación **no** se centra en las cuatro preguntas. Se usan en la diapositiva 2 (un minuto) para explicar por qué el proyecto no es "un chat": son los cuatro problemas que cualquier sistema serio tiene que resolver. Después la presentación sigue el orden de la rúbrica, que es lo que se califica:
+
+| Diapositiva | Contenido | Indicador de la rúbrica | Peso |
+|---|---|---|---|
+| 3, 4, 5 | C4 contexto, contenedores y componentes | IE1 | **15 %** |
+| 6 | Patrones: microservicios y Event-Driven | IE3 | **10 %** |
+| 7 | Dimensionamiento y costos (AWS + canal) | IE2 | **15 %** |
+| 8 | Kubernetes, escalado y balanceo con Nginx | IE5 | **15 %** |
+| 9 | Seguridad, monitoreo con Grafana y alta disponibilidad | IE7 | **5 %** |
+| 10 | Cinco decisiones y alternativas descartadas | IE6 (defensa) | **10 %** |
+| Todas | Explicar, argumentar y responder preguntas | IE4, IE8, IE9, IE10 | **30 %** |
+
+La mitad de la nota (40 %) está en la defensa oral: explicar los patrones de alta disponibilidad, argumentar la integración entre servicios, hablar con lenguaje técnico y responder. Por eso la presentación muestra evidencia y no solo describe: números medidos, pruebas que pasaron y decisiones con su alternativa descartada.
+
+Si te preguntan "¿de qué se trata su arquitectura?", la respuesta de una frase es: "de agendar horas por WhatsApp sin duplicar cupos, sin perder la conversación si un servidor cae, sin exponer datos de salud y con el costo medido por turno". Eso engancha; el resto del tiempo se demuestra con los diagramas y los números.
+
 ---
 
 ## 2. Cómo leer un diagrama C4 (sin saber de arquitectura)

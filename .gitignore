@@ -12,3 +12,4 @@ frontend/*.log
 
 # Logs y respaldos
 *.log
+logs/
