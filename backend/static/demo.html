@@ -183,8 +183,10 @@ async function enviar() {
     agregar(datos.respuesta, 'entrada', datos.herramientas || []);
     pill.textContent = 'agente activo';
   } catch (e) {
-    agregar('No pude conectar con el servidor. Revisa que la ventana '
-      + '"MediFlow API" siga abierta y vuelve a intentarlo.', 'entrada');
+    const pista = location.protocol === 'file:'
+      ? 'Estás abriendo el archivo directo (file://). Entra por http://127.0.0.1:8000/demo'
+      : 'No hubo respuesta de ' + location.origin + '/api/chat';
+    agregar('No pude conectar con el servidor. ' + pista, 'entrada');
     pill.textContent = 'sin conexión';
     console.error(e);
   } finally {

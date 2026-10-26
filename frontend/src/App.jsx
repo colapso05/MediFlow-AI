@@ -86,12 +86,16 @@ export default function App() {
     } catch (error) {
       console.error(error);
 
+      const pista =
+        window.location.protocol === "file:"
+          ? "Estás abriendo el archivo directo (file://). Entra por http://127.0.0.1:8000/app"
+          : `No hubo respuesta de ${window.location.origin}/api/chat`;
+
       setMensajes((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "No pude conectar con el servidor. Revisa que la ventana \"MediFlow API\" siga abierta y vuelve a intentarlo.",
+          content: `No pude conectar con el servidor. ${pista}`,
         },
       ]);
     } finally {
