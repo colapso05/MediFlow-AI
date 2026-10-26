@@ -1,6 +1,7 @@
 
 import logging
 import os
+import re
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -110,14 +111,106 @@ class Reagendamiento(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Guardrails deterministas (no dependen del modelo)
+# ---------------------------------------------------------------------------
+
+# Intentos de cambiar el rol, las reglas o el formato de salida del agente.
+PATRONES_ENTRADA = [
+    r"ignora\s+(todas\s+)?(tus|las)\s+instrucciones",
+    r"olvida\s+(que\s+eres|tus\s+instrucciones|todo\s+lo\s+anterior)",
+    r"responde\s+(solo|solamente|únicamente|unicamente)\s+con",
+    r"(modo|eres)\s+dan\b",
+    r"(revela|mu[eé]stra|dime|ense[nñ]ame)\s+(tu|el)\s+(prompt|system\s*prompt|instrucciones)",
+    r"sin\s+(reglas|restricciones|filtros|limites|l[ií]mites)",
+    r"ahora\s+eres\s+",
+    r"(jailbreak|prompt\s*injection|modo\s+desarrollador)",
+]
+
+# Lo que una respuesta NUNCA debe contener, aunque el modelo se equivoque.
+PATRONES_SALIDA = [
+    r"system\s*prompt",
+    r"(mis|tus)\s+instrucciones\s+(son|internas)",
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}",
+    r"\b(horario_id|cita_id|paciente_id)\b",
+    r"\bsk-[A-Za-z0-9]{10,}",
+]
+
+RESPUESTA_GUARDRAIL = (
+    "No puedo cambiar mi rol ni mis instrucciones: sigo siendo la recepcionista "
+    "virtual de MediFlow. Sí puedo agendar, reagendar o cancelar una hora médica. "
+    "¿Te ayudo con eso?"
+)
+RESPUESTA_RESPALDO = (
+    "Perdona, no te entendí. ¿Me repites si quieres agendar, cambiar o cancelar "
+    "una hora médica?"
+)
+
+CONTADOR_GUARDRAILS = {"entrada": 0, "salida": 0, "vacia": 0, "ultimos": []}
+
+
+def _anotar(tipo: str, detalle: str) -> None:
+    CONTADOR_GUARDRAILS[tipo] += 1
+    CONTADOR_GUARDRAILS["ultimos"] = ([{"tipo": tipo, "detalle": detalle[:120]}]
+                                      + CONTADOR_GUARDRAILS["ultimos"])[:10]
+    registro.info("GUARDRAIL %s: %s", tipo, detalle[:200])
+
+
+def guardrail_entrada(texto: str) -> bool:
+    """True si el mensaje intenta manipular al agente."""
+    for patron in PATRONES_ENTRADA:
+        if re.search(patron, texto, flags=re.I):
+            _anotar("entrada", f"{patron} :: {texto}")
+            return True
+    return False
+
+
+def guardrail_salida(respuesta: str) -> str:
+    """Devuelve una respuesta segura si el modelo filtró algo que no debe."""
+    limpia = (respuesta or "").strip()
+    if not limpia:
+        _anotar("vacia", "respuesta vacía del modelo")
+        return RESPUESTA_RESPALDO
+    for patron in PATRONES_SALIDA:
+        if re.search(patron, limpia, flags=re.I):
+            _anotar("salida", f"{patron} :: {limpia}")
+            return RESPUESTA_GUARDRAIL
+    # Obediencia a "responde solo con una palabra": 1-3 palabras en mayúsculas.
+    palabras = limpia.split()
+    if len(palabras) <= 3 and limpia.isupper() and any(c.isalpha() for c in limpia):
+        _anotar("salida", f"salida en mayúsculas :: {limpia}")
+        return RESPUESTA_GUARDRAIL
+    return limpia
+
+
+# ---------------------------------------------------------------------------
 # Chat con el agente
 # ---------------------------------------------------------------------------
+
+
+@app.get("/api/guardrails")
+def estado_guardrails():
+    """Contador visible de intentos bloqueados (para el tablero y la demo)."""
+    return {
+        "patrones_entrada": len(PATRONES_ENTRADA),
+        "patrones_salida": len(PATRONES_SALIDA),
+        "bloqueos_entrada": CONTADOR_GUARDRAILS["entrada"],
+        "bloqueos_salida": CONTADOR_GUARDRAILS["salida"],
+        "respuestas_vacias_corregidas": CONTADOR_GUARDRAILS["vacia"],
+        "ultimos": CONTADOR_GUARDRAILS["ultimos"],
+    }
 
 
 @app.post("/api/chat")
 def conversar(datos: MensajeChat):
     if not datos.mensaje.strip():
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+
+    telefono = datos.telefono or "+56900000000"
+    sesion = datos.sesion or uuid4().hex[:12]
+
+    # Guardrail de entrada: no se gasta una llamada al modelo si es manipulación.
+    if guardrail_entrada(datos.mensaje):
+        return {"respuesta": RESPUESTA_GUARDRAIL, "sesion": sesion, "herramientas": []}
 
     mensajes = []
     for item in datos.historial[-20:]:
@@ -130,9 +223,6 @@ def conversar(datos: MensajeChat):
 
     mensajes.append(HumanMessage(content=datos.mensaje))
 
-    telefono = datos.telefono or "+56900000000"
-    sesion = datos.sesion or uuid4().hex[:12]
-
     # La identidad del paciente queda fijada aquí: el modelo no puede cambiarla.
     token = TELEFONO_ACTUAL.set(telefono)
 
@@ -141,11 +231,7 @@ def conversar(datos: MensajeChat):
             {"messages": mensajes},
             config={"recursion_limit": 14},
         )
-        respuesta = resultado["messages"][-1].content
-        if not (respuesta or "").strip():
-            respuesta = (
-                "Perdona, se me fue la respuesta. ¿Me repites lo que necesitas?"
-            )
+        respuesta = guardrail_salida(resultado["messages"][-1].content)
 
         herramientas = [
             mensaje.name

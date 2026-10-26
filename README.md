@@ -191,6 +191,30 @@ WhatsApp: el modelo no puede cambiarla ni consultar citas de terceros.
 Once pruebas unitarias sobre el motor de agenda y reservas: cupo ocupado, idempotencia,
 cancelación de una cita ajena y reagendamiento.
 
+### Verificación adversarial del agente
+
+Con la API levantada, lanza 20 ataques (inyección de prompt, cambio de rol, datos de
+otro paciente, inyección SQL, abuso de reserva, respuestas vacías) y falla si el agente
+filtra algo o deja al paciente sin respuesta:
+
+```bash
+# Windows
+.venv\Scripts\python.exe tests\verificar_agente.py --repeticiones 3
+
+# Linux / macOS
+.venv/bin/python tests/verificar_agente.py --repeticiones 3
+```
+
+Los bloqueos quedan contados en `GET /api/guardrails`.
+
+### Límite conocido de la demo local
+
+La demo corre en tu equipo y **sin autenticación**: `/crm` y los endpoints de lectura
+(`/api/pacientes`, `/api/citas`, `/api/conversaciones`) responden a cualquiera que alcance
+el puerto 8000, con datos ficticios de prueba. El agente sí limita cada conversación a su
+propio teléfono. No expongas este puerto a internet: en la arquitectura desplegada el
+acceso va detrás de ALB con autenticación y mTLS entre servicios.
+
 ---
 
 ## Problemas comunes
