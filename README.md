@@ -206,7 +206,36 @@ cancelación de una cita ajena y reagendamiento.
 
 ---
 
-## Contexto académico
+## Ejecutar con Docker
 
-Los entregables de la evaluación (informe de arquitectura arc42 y presentación de la defensa) se
-entregan por la plataforma del curso y no forman parte de este repositorio.
+El repositorio incluye el `Dockerfile` del servicio de API y agente (dos etapas, usuario sin
+privilegios, healthcheck contra `/api/health`).
+
+```bash
+# Construir la imagen
+docker build -t mediflow-api:local .
+
+# Arrancar la API en el puerto 8000, apuntando a la base del compose
+docker run -d --name mediflow-api -p 8000:8000 \
+  -e DEEPSEEK_API_KEY=tu_clave \
+  -e DATABASE_URL="postgresql://mediflow:tu_password@host.docker.internal:5433/mediflow_db" \
+  mediflow-api:local
+```
+
+En un clúster real la base se resuelve por el nombre del servicio interno, no por
+`host.docker.internal`, y la configuración entra por Secrets Manager.
+
+## Documentación técnica
+
+La entrega de la evaluación está en [`docs/`](docs/):
+
+| Archivo | Contenido |
+|---|---|
+| `docs/EP2_Zuniga_Burgos_Cortez.pdf` | Informe técnico arc42 con los diagramas C4, dimensionamiento, patrones, seguridad y costos |
+| `docs/EP2_Presentacion_Zuniga_Burgos_Cortez.pdf` | Apoyo gráfico de la defensa (10 diapositivas) |
+| `docs/Guia_para_entender_la_presentacion.pdf` | Glosario técnico y recorrido de cada diapositiva en lenguaje simple |
+| `docs/guion_defensa.md` | Guion minuto a minuto de la exposición |
+| `docs/guion_demo_agente.md` | Guion de la demo en vivo del agente y del CRM |
+
+Asignatura ITY1102 — Arquitectura de Sistemas de Inteligencia Artificial, Duoc UC.
+Integrantes: Demis Zúñiga, Bruno Burgos, Matías Cortez.
