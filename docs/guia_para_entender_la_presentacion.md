@@ -177,11 +177,13 @@ Qué significa: el sistema atiende 300 conversaciones diarias de 8 turnos cada u
 Frase: "La arquitectura resuelve cuatro problemas que un prototipo no enfrenta: concurrencia sobre el mismo cupo, reanudación tras una caída, datos de salud sensibles y costo variable por turno."
 
 ### 3 · C4 Nivel 1 — Contexto
-Qué se ve: una caja (MediFlow) con el paciente, la secretaria, WhatsApp, el proveedor del modelo y la base de datos alrededor.
+Qué se ve: la caja de MediFlow al centro, tres tipos de usuario arriba (paciente, personal administrativo y equipo TI) y **cinco sistemas externos** abajo: WhatsApp Business Platform (Meta), el proveedor del modelo (DeepSeek), la pasarela de correo/SMS, el sistema de ficha clínica (HIS) y la pasarela de pagos.
 
-Qué significa: es el mapa general: quién usa el sistema y de qué servicios externos depende.
+Qué significa: es el mapa general: quién usa el sistema y de qué servicios externos depende. El paciente escribe por WhatsApp, WhatsApp le entrega el mensaje al sistema por webhook, y el sistema responde por la misma vía. En paralelo puede entrar directo por la web.
 
-Frase: "En el nivel 1 mostramos que el sistema depende de tres cosas externas: la plataforma de WhatsApp de Meta, el proveedor del modelo y la base de datos. Nada más entra ni sale."
+Frase: "En el nivel 1 mostramos que el sistema depende de cinco servicios externos, y el más importante es WhatsApp: es el canal de entrada y salida de cada mensaje, y además es un costo variable. La base de datos no aparece aquí a propósito: es un contenedor del nivel 2, no un sistema ajeno al equipo."
+
+> **Ojo con la base de datos.** Si alguien dice que "falta la base de datos en el diagrama de contexto", la respuesta correcta es: la base es parte del sistema, no un sistema externo. En C4 se dibuja en el nivel 2 (contenedores). Lo que sí debe estar en el nivel 1 son los sistemas que no controlas: WhatsApp, el proveedor del modelo, el HIS, la pasarela de correo y la de pagos.
 
 ### 4 · C4 Nivel 2 — Contenedores
 Qué se ve: las **seis unidades desplegables**: adaptador de canal (webhook), API de negocio, servicio de agente, servicio de herramientas, gateway de LLM y la base de datos, más Redis y la cola.

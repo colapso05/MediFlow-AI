@@ -36,7 +36,11 @@ export default function App() {
     const mensaje = texto.trim();
     if (!mensaje || cargando) return;
 
-    const historial = mensajes;
+    // Solo role y content: el backend valida el historial como texto y rechaza
+    // campos extra como `herramientas` (devolvía 422 en el segundo mensaje).
+    const historial = mensajes
+      .slice(-20)
+      .map(({ role, content }) => ({ role, content }));
 
     setMensajes((prev) => [
       ...prev,

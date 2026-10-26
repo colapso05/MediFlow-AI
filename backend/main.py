@@ -85,7 +85,9 @@ def obtener_conexion():
 
 class MensajeChat(BaseModel):
     mensaje: str
-    historial: list[dict[str, str]] = Field(default_factory=list)
+    # Tolerante a campos extra: un cliente puede mandar metadatos del mensaje
+    # (por ejemplo las herramientas usadas) y la conversación no debe romperse.
+    historial: list[dict] = Field(default_factory=list)
     telefono: str | None = None
     sesion: str | None = None
 
