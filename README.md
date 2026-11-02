@@ -110,6 +110,19 @@ proyecto usa la suya.
 
 ---
 
+## Agrupación de mensajes (ventana de 2,5 s)
+
+En WhatsApp real el paciente escribe varias veces seguidas: "hola", "necesito hora", "con el doctor rojas".
+La API agrupa esos mensajes y responde **una sola vez**, no tres.
+
+- Se configura con `VENTANA_AGRUPACION` en `.env` (segundos; por defecto `2.5`).
+- Cada mensaje del mismo teléfono **reinicia** la ventana; cuando pasa ese tiempo sin mensajes nuevos, el lote se procesa en un solo turno del agente y todos los envíos pendientes reciben la misma respuesta.
+- En el simulador se ven los tres mensajes del paciente y **una sola respuesta**, con el chip "N mensajes agrupados".
+
+Para cambiarla: editá `.env`, guardá y **reiniciá la API** (cerrá la ventana "MediFlow API" y volvé a ejecutar `demo.cmd`). El código está en `backend/main.py`, línea 213.
+
+---
+
 ## Direcciones una vez arrancado
 
 | Página | Dirección |
