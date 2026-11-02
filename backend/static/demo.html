@@ -73,7 +73,7 @@
     <div class="avatar">MF</div>
     <div class="titulo">
       <b>MediFlow AI · Clínica</b>
-      <span id="telefono">+56 9 1111 0009 · en línea</span>
+      <span id="telefono">en línea</span>
     </div>
     <div class="estado" id="estadoPill">agente activo</div>
   </header>
@@ -104,7 +104,10 @@ const entrada = document.getElementById('entrada');
 const btn = document.getElementById('btnEnviar');
 const escribiendo = document.getElementById('escribiendo');
 const pill = document.getElementById('estadoPill');
-const TELEFONO = '+56911110009';
+// Numero nuevo en cada carga: cada prueba es un paciente distinto.
+  const TELEFONO = '+569' + String(Math.floor(10000000 + Math.random() * 89999999));
+  const elTel = document.getElementById('telefono');
+  if (elTel) elTel.textContent = TELEFONO + ' · en línea';
 
 let historial = [];
 let enviando = false;

@@ -238,3 +238,19 @@ button, input {
     max-width: 90%;
   }
 }
+
+/* Boton para empezar la demo con otro numero de WhatsApp */
+.nuevo-paciente {
+  margin-left: auto;
+  margin-right: 10px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.75;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.nuevo-paciente:hover { opacity: 1; }

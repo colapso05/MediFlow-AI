@@ -206,7 +206,9 @@ def conversar(datos: MensajeChat):
     if not datos.mensaje.strip():
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
 
-    telefono = datos.telefono or "+56900000000"
+    # Sin telefono explicito se genera uno nuevo por turno: con un valor fijo,
+    # todas las pruebas compartian la misma ficha y chocaban por RUT.
+    telefono = datos.telefono or f"+569{uuid4().int % 90000000 + 10000000}"
     sesion = datos.sesion or uuid4().hex[:12]
 
     # Guardrail de entrada: no se gasta una llamada al modelo si es manipulación.

@@ -11,16 +11,25 @@ import {
 import "./App.css";
 
 const API_URL = "";   // mismo origen: la API sirve también el frontend compilado
-const TELEFONO = "+56911110009";
+// Cada apertura de la pagina es un paciente distinto. Con un numero fijo, la
+// ficha del primer RUT bloqueaba las pruebas siguientes con el mensaje
+// "este numero ya tiene una ficha registrada con otro RUT".
+function telefonoNuevo() {
+  const numero = Math.floor(10000000 + Math.random() * 89999999);
+  return `+569${numero}`;
+}
+
+const SALUDO_INICIAL = [
+  {
+    role: "assistant",
+    content:
+      "¡Hola! 👋 Soy MediFlow AI, el asistente administrativo de la clínica. ¿En qué puedo ayudarte hoy?",
+  },
+];
 
 export default function App() {
-  const [mensajes, setMensajes] = useState([
-    {
-      role: "assistant",
-      content:
-        "¡Hola! 👋 Soy MediFlow AI, el asistente administrativo de la clínica. ¿En qué puedo ayudarte hoy?",
-    },
-  ]);
+  const [telefono, setTelefono] = useState(telefonoNuevo);
+  const [mensajes, setMensajes] = useState(SALUDO_INICIAL);
 
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -61,7 +70,7 @@ export default function App() {
           body: JSON.stringify({
             mensaje,
             historial,
-            telefono: TELEFONO,
+            telefono,
           }),
         });
 
@@ -155,8 +164,20 @@ export default function App() {
 
           <div className="chat-contact">
             <strong>MediFlow AI</strong>
-            <span>Asistente virtual · {TELEFONO}</span>
+            <span>Asistente virtual · {telefono}</span>
           </div>
+
+          <button
+            type="button"
+            className="nuevo-paciente"
+            title="Empezar de cero con otro número de WhatsApp"
+            onClick={() => {
+              setTelefono(telefonoNuevo());
+              setMensajes(SALUDO_INICIAL);
+            }}
+          >
+            Nuevo paciente
+          </button>
 
           <MoreVertical size={21} />
         </header>
