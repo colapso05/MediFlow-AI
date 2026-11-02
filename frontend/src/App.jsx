@@ -32,18 +32,21 @@ export default function App() {
   const [mensajes, setMensajes] = useState(SALUDO_INICIAL);
 
   const [texto, setTexto] = useState("");
-  const [cargando, setCargando] = useState(false);
+  const [enCurso, setEnCurso] = useState(0);   // respuestas pendientes
   const finalChat = useRef(null);
 
   useEffect(() => {
     finalChat.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mensajes, cargando]);
+  }, [mensajes, enCurso]);
 
   async function enviarMensaje(e) {
     e.preventDefault();
 
     const mensaje = texto.trim();
-    if (!mensaje || cargando) return;
+    // Sin candado: se pueden enviar varios mensajes seguidos y cada uno se
+    // procesa como un turno aparte. Las respuestas llegan cuando el agente
+    // termina cada una, igual que en WhatsApp real.
+    if (!mensaje) return;
 
     // Solo role y content: el backend valida el historial como texto y rechaza
     // campos extra como `herramientas` (devolvía 422 en el segundo mensaje).
@@ -57,7 +60,7 @@ export default function App() {
     ]);
 
     setTexto("");
-    setCargando(true);
+    setEnCurso((n) => n + 1);
     let ultimoError = null;
 
     try {
@@ -127,7 +130,7 @@ export default function App() {
         },
       ]);
     } finally {
-      setCargando(false);
+      setEnCurso((n) => n - 1);
     }
   }
 
@@ -184,7 +187,7 @@ export default function App() {
 
         <section className="messages">
           <div className="chat-notice">
-            Simulación de WhatsApp · Entorno de pruebas
+            Simulación de WhatsApp · Entorno de pruebas · podés enviar varios mensajes seguidos
           </div>
 
           {mensajes.map((mensaje, index) => (
@@ -213,9 +216,10 @@ export default function App() {
             </div>
           ))}
 
-          {cargando && (
+          {enCurso > 0 && (
             <div className="message incoming typing">
               MediFlow está escribiendo...
+              {enCurso > 1 && ` (${enCurso} mensajes en proceso)`}
             </div>
           )}
 
@@ -228,12 +232,11 @@ export default function App() {
             placeholder="Escribe un mensaje..."
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            disabled={cargando}
           />
 
           <button
             type="submit"
-            disabled={cargando || !texto.trim()}
+            disabled={!texto.trim()}
             aria-label="Enviar mensaje"
           >
             <Send size={20} />
