@@ -1,7 +1,7 @@
 
 import os
 from contextvars import ContextVar
-from datetime import date
+from datetime import date, datetime
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
 
@@ -130,17 +130,59 @@ def buscar_horarios(
     return [_formatear(horario) for horario in horarios]
 
 
+def _normalizar_hora(valor) -> str | None:
+    """Acepta "15:00", "15.00", "15h", "1500" o "15" y devuelve "HH:MM"."""
+    texto = str(valor).strip().lower().replace(".", ":").replace("h", ":")
+    partes = texto.split(":")
+    if len(partes) == 1:
+        digitos = "".join(c for c in texto if c.isdigit())
+        if len(digitos) in (1, 2):
+            partes = [digitos, "00"]
+        elif len(digitos) in (3, 4):
+            partes = [digitos[:-2], digitos[-2:]]
+        else:
+            return None
+    if len(partes) != 2:
+        return None
+    try:
+        hora = int(partes[0])
+        minuto = int(partes[1] or 0)
+    except ValueError:
+        return None
+    if not (0 <= hora <= 23 and 0 <= minuto <= 59):
+        return None
+    return f"{hora:02d}:{minuto:02d}"
+
+
+def _normalizar_fecha(valor) -> str | None:
+    """Acepta 2026-11-03, 03/11/2026, 03-11-2026 o 03/11 y devuelve ISO."""
+    texto = str(valor).strip()
+    for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(texto, formato).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
 @tool
 def reservar(
     horario_id: int,
     nombre: str,
     rut: str,
+    hora: str,
     email: str | None = None,
+    fecha: str | None = None,
 ) -> dict:
     """Registra y confirma la cita del paciente en el horario indicado.
 
     Requiere el horario_id que devolvió buscar_horarios, el nombre completo del
-    paciente y su RUT (el RUT es obligatorio para agendar en Chile). Acepta el
+    paciente y su RUT (el RUT es obligatorio para agendar en Chile).
+
+    Incluye SIEMPRE hora con el formato HH:MM y, si la conoces, fecha como
+    AAAA-MM-DD. Son las que le anunciaste al paciente: la herramienta verifica
+    que el horario_id corresponda exactamente a esa hora y fecha, y si no
+    coincide no agenda nada. Así no se reserva una hora distinta de la ofrecida. Acepta el
     RUT con o sin puntos y con o sin guion: 12.345.678-5, 12345678-5 o
     123456785. El teléfono se toma de la conversación de WhatsApp. Si el RUT no
     es válido, la herramienta lo indica y no agenda: pide el dato de nuevo.
@@ -182,6 +224,58 @@ def reservar(
                     "UPDATE pacientes SET nombre = %s WHERE id = %s",
                     (nombre.strip(), paciente_previo["id"]),
                 )
+
+            # Blindaje: el horario_id tiene que ser exactamente la hora y fecha
+            # que el agente anunció. Si el modelo eligió otro id, no se agenda.
+            horario_real = conexion.execute(
+                """
+                SELECT
+                    to_char(h.inicio AT TIME ZONE 'America/Santiago', 'HH24:MI') AS hora,
+                    to_char(h.inicio AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD') AS fecha
+                FROM horarios h
+                WHERE h.id = %s
+                """,
+                (horario_id,),
+            ).fetchone()
+
+            if not horario_real:
+                return {
+                    "ok": False,
+                    "campo": "horario",
+                    "error": "Ese horario no existe. Vuelve a consultar la disponibilidad.",
+                }
+
+            hora_pedida = _normalizar_hora(hora)
+            if hora_pedida is None:
+                return {
+                    "ok": False,
+                    "campo": "horario",
+                    "error": "Falta la hora en formato HH:MM. Repite la llamada con la hora que anunciaste.",
+                }
+            if hora_pedida != horario_real["hora"]:
+                return {
+                    "ok": False,
+                    "campo": "horario",
+                    "error": (
+                        f"No se agendó nada: el horario_id {horario_id} es de las "
+                        f"{horario_real['hora']}, no de las {hora_pedida} que le "
+                        "anunciaste al paciente. Vuelve a llamar buscar_horarios "
+                        "y usa el id exacto del horario que ofreciste."
+                    ),
+                }
+
+            if fecha:
+                fecha_pedida = _normalizar_fecha(fecha)
+                if fecha_pedida and fecha_pedida != horario_real["fecha"]:
+                    return {
+                        "ok": False,
+                        "campo": "horario",
+                        "error": (
+                            f"No se agendó nada: el horario_id {horario_id} es del "
+                            f"{horario_real['fecha']}, no del {fecha}. Vuelve a "
+                            "consultar la disponibilidad."
+                        ),
+                    }
 
             cita = reservar_cita(
                 conexion,
