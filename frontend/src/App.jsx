@@ -34,6 +34,8 @@ export default function App() {
   const [texto, setTexto] = useState("");
   const [enCurso, setEnCurso] = useState(0);   // respuestas pendientes
   const finalChat = useRef(null);
+  // Lotes ya respondidos: varios mensajes agrupados comparten una respuesta.
+  const lotesPintados = useRef(new Set());
 
   useEffect(() => {
     finalChat.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,12 +106,20 @@ export default function App() {
 
       const datos = await respuesta.json();
 
+      // Si el backend agrupó varios mensajes en un mismo lote, la respuesta es
+      // una sola: se pinta la primera vez y las demás llamadas la ignoran.
+      if (datos.lote) {
+        if (lotesPintados.current.has(datos.lote)) return;
+        lotesPintados.current.add(datos.lote);
+      }
+
       setMensajes((prev) => [
         ...prev,
         {
           role: "assistant",
           content: datos.respuesta,
           herramientas: datos.herramientas || [],
+          agrupados: datos.agrupados || 1,
         },
       ]);
     } catch (error) {
@@ -199,6 +209,14 @@ export default function App() {
             >
               <div className="message-content">
                 {mensaje.content}
+                {mensaje.agrupados > 1 && (
+                  <span className="tools">
+                    <span className="tool-chip">
+                      ⚡ {mensaje.agrupados} mensajes agrupados
+                    </span>
+                  </span>
+                )}
+
                 {mensaje.herramientas?.length > 0 && (
                   <span className="tools">
                     {mensaje.herramientas.map((h) => (

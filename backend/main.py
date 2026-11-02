@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import threading
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -201,6 +202,75 @@ def estado_guardrails():
     }
 
 
+# ---------------------------------------------------------------------------
+# Cola de mensajes con ventana de agrupacion
+# ---------------------------------------------------------------------------
+# En WhatsApp real una persona escribe "hola" / "necesito hora" / "con el doctor
+# rojas" en tres mensajes seguidos. El agente debe responder una vez, no tres.
+# Esta ventana agrupa los mensajes del mismo telefono que llegan dentro de
+# VENTANA_AGRUPACION segundos y los procesa como un solo turno del agente.
+
+VENTANA_AGRUPACION = float(os.getenv("VENTANA_AGRUPACION", "2.5"))
+
+
+class _Grupo:
+    """Mensajes de un mismo telefono esperando procesarse en un solo turno."""
+
+    __slots__ = (
+        "textos", "sesion", "historial", "lote", "evento",
+        "respuesta", "herramientas", "error", "timer",
+    )
+
+    def __init__(self, sesion, historial):
+        self.textos = []
+        self.sesion = sesion
+        self.historial = historial
+        self.lote = uuid4().hex[:8]
+        self.evento = threading.Event()
+        self.respuesta = None
+        self.herramientas = []
+        self.error = None
+        self.timer = None
+
+
+_GRUPOS = {}
+_GRUPOS_LOCK = threading.Lock()
+
+
+def _cerrar_grupo(telefono, grupo):
+    """Procesa el lote una sola vez, cuando pasa la ventana sin mensajes nuevos."""
+    with _GRUPOS_LOCK:
+        if _GRUPOS.get(telefono) is grupo:
+            del _GRUPOS[telefono]
+    try:
+        grupo.respuesta, grupo.herramientas = _procesar_turno(
+            telefono, grupo.textos, grupo.sesion, grupo.historial
+        )
+    except Exception as error:  # noqa: BLE001
+        grupo.error = error
+    finally:
+        grupo.evento.set()
+
+
+def _agrupar(telefono, texto, sesion, historial):
+    """Anade el mensaje al grupo del telefono y reinicia la ventana."""
+    with _GRUPOS_LOCK:
+        grupo = _GRUPOS.get(telefono)
+        if grupo is None:
+            grupo = _Grupo(sesion, historial)
+            _GRUPOS[telefono] = grupo
+        grupo.textos.append(texto)
+        if grupo.timer is not None:
+            grupo.timer.cancel()
+        temporizador = threading.Timer(
+            VENTANA_AGRUPACION, _cerrar_grupo, args=(telefono, grupo)
+        )
+        temporizador.daemon = True
+        grupo.timer = temporizador
+        temporizador.start()
+    return grupo
+
+
 @app.post("/api/chat")
 def conversar(datos: MensajeChat):
     if not datos.mensaje.strip():
@@ -211,12 +281,42 @@ def conversar(datos: MensajeChat):
     telefono = datos.telefono or f"+569{uuid4().int % 90000000 + 10000000}"
     sesion = datos.sesion or uuid4().hex[:12]
 
-    # Guardrail de entrada: no se gasta una llamada al modelo si es manipulación.
+    # Guardrail de entrada: no se gasta una llamada al modelo si es manipulacion.
     if guardrail_entrada(datos.mensaje):
-        return {"respuesta": RESPUESTA_GUARDRAIL, "sesion": sesion, "herramientas": []}
+        return {
+            "respuesta": RESPUESTA_GUARDRAIL,
+            "sesion": sesion,
+            "herramientas": [],
+            "lote": None,
+            "agrupados": 1,
+        }
 
+    grupo = _agrupar(telefono, datos.mensaje.strip(), sesion, list(datos.historial))
+
+    # El request espera a que la ventana cierre y el lote se procese: el cliente
+    # recibe la respuesta sin cambiar la forma de llamar a la API.
+    if not grupo.evento.wait(timeout=180):
+        raise HTTPException(status_code=504, detail="El turno no se proceso a tiempo")
+    if grupo.error is not None:
+        registro.exception("Fallo al procesar el turno de %s: %s", telefono, grupo.error)
+        print("[ERROR MEDIFLOW AI]", type(grupo.error).__name__, grupo.error, flush=True)
+        raise HTTPException(
+            status_code=502, detail="No fue posible obtener respuesta del agente"
+        )
+
+    return {
+        "respuesta": grupo.respuesta,
+        "sesion": grupo.sesion,
+        "herramientas": grupo.herramientas,
+        "lote": grupo.lote,
+        "agrupados": len(grupo.textos),
+    }
+
+
+def _procesar_turno(telefono, textos, sesion, historial):
+    """Llama al agente una sola vez con todos los mensajes del lote."""
     mensajes = []
-    for item in datos.historial[-20:]:
+    for item in historial[-20:]:
         rol = item.get("role")
         contenido = item.get("content", "")
         if rol == "user":
@@ -224,11 +324,11 @@ def conversar(datos: MensajeChat):
         elif rol == "assistant":
             mensajes.append(AIMessage(content=contenido))
 
-    mensajes.append(HumanMessage(content=datos.mensaje))
+    texto = "\n".join(textos)
+    mensajes.append(HumanMessage(content=texto))
 
-    # La identidad del paciente queda fijada aquí: el modelo no puede cambiarla.
+    # La identidad del paciente queda fijada aqui: el modelo no puede cambiarla.
     token = TELEFONO_ACTUAL.set(telefono)
-
     try:
         resultado = agente.invoke(
             {"messages": mensajes},
@@ -248,32 +348,13 @@ def conversar(datos: MensajeChat):
                 INSERT INTO conversaciones (telefono, sesion, rol, contenido)
                 VALUES (%s, %s, 'user', %s), (%s, %s, 'assistant', %s)
                 """,
-                (
-                    telefono,
-                    sesion,
-                    datos.mensaje,
-                    telefono,
-                    sesion,
-                    respuesta,
-                ),
+                (telefono, sesion, texto, telefono, sesion, respuesta),
             )
             conexion.commit()
-
-    except Exception as error:
-        registro.exception("Fallo al procesar el turno de %s: %s", telefono, error)
-        print("[ERROR MEDIFLOW AI]", type(error).__name__, error, flush=True)
-        raise HTTPException(
-            status_code=502,
-            detail="No fue posible obtener respuesta del agente",
-        ) from error
     finally:
         TELEFONO_ACTUAL.reset(token)
 
-    return {
-        "respuesta": respuesta,
-        "sesion": sesion,
-        "herramientas": herramientas,
-    }
+    return respuesta, herramientas
 
 
 # ---------------------------------------------------------------------------
