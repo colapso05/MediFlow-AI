@@ -14,6 +14,7 @@ from backend.agenda import consultar_horarios
 from backend.reservas import (
     CitaNoEncontrada,
     HorarioNoDisponible,
+    PacienteConCitaEnEseHorario,
     RutDeOtroPaciente,
     RutInvalido,
     cancelar_cita,
@@ -221,6 +222,19 @@ def reservar(
             "ok": False,
             "campo": "rut",
             "error": f"{error} Pídelo otra vez al paciente.",
+        }
+    except PacienteConCitaEnEseHorario as error:
+        detalle = error.detalle
+        return {
+            "ok": False,
+            "campo": "horario",
+            "error": (
+                "El paciente ya tiene una cita a esa misma hora: "
+                f"{detalle.get('medico')} ({detalle.get('especialidad')}). "
+                "Un paciente puede tener varias citas el mismo día, pero no dos "
+                "a la misma hora. Dile que esa otra cita existe y ofrécele "
+                "moverla o cancelarla, o proponle otro horario."
+            ),
         }
     except RutDeOtroPaciente as error:
         return {

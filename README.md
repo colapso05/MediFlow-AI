@@ -123,6 +123,15 @@ Para cambiarla: editá `.env`, guardá y **reiniciá la API** (cerrá la ventana
 
 ---
 
+## Reglas de agenda
+
+- **Un cupo, una cita.** Se garantiza en la base con el índice único `citas_horario_activo_idx`.
+- **Un paciente puede tener varias citas**, incluso el mismo día y con especialistas distintos.
+- **No puede tener dos a la misma hora**: si intenta reservar otra que se solape con una cita activa, la API responde `409` con el médico y la especialidad que ya ocupa esa franja, y el agente le ofrece moverla, cancelarla o elegir otro horario. Se valida en `backend/reservas.py` (`_cita_solapada`), también al reagendar.
+- **Idempotencia**: la misma clave con la misma huella devuelve la misma cita; no duplica por reintento.
+
+---
+
 ## Direcciones una vez arrancado
 
 | Página | Dirección |

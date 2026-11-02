@@ -27,6 +27,21 @@ class RutDeOtroPaciente(Exception):
     """El RUT ya está asociado a otra ficha o el número ya tiene otro RUT."""
 
 
+class PacienteConCitaEnEseHorario(Exception):
+    """El paciente ya tiene otra cita activa que se solapa con ese horario.
+
+    Un paciente puede tener varias citas el mismo día con especialistas
+    distintos, pero no dos a la misma hora: no puede estar en dos box a la vez.
+    """
+
+    def __init__(self, detalle: dict):
+        self.detalle = detalle
+        super().__init__(
+            "El paciente ya tiene una cita a esa misma hora: "
+            f"{detalle.get('medico')} ({detalle.get('especialidad')})."
+        )
+
+
 def _huella_reserva(
     *,
     horario_id: int,
@@ -197,6 +212,35 @@ def _obtener_o_crear_paciente(
     return paciente["id"]
 
 
+def _cita_solapada(
+    conexion: psycopg.Connection,
+    *,
+    paciente_id: int,
+    inicio,
+    fin,
+    excluir_cita_id: int | None = None,
+) -> dict | None:
+    """Busca otra cita activa del paciente que se cruce con [inicio, fin)."""
+    return conexion.execute(
+        """
+        SELECT c.id, h.inicio, h.fin, m.nombre AS medico,
+               e.nombre AS especialidad
+        FROM citas c
+        JOIN horarios h ON h.id = c.horario_id
+        JOIN medicos m ON m.id = c.medico_id
+        JOIN especialidades e ON e.id = m.especialidad_id
+        WHERE c.paciente_id = %s
+          AND c.estado IN ('confirmada', 'completada')
+          AND h.inicio < %s
+          AND h.fin > %s
+          AND c.id <> COALESCE(%s::int, -1)
+        ORDER BY h.inicio
+        LIMIT 1
+        """,
+        (paciente_id, fin, inicio, excluir_cita_id),
+    ).fetchone()
+
+
 def reservar_cita(
     conexion: psycopg.Connection,
     *,
@@ -242,7 +286,7 @@ def reservar_cita(
 
             horario = conexion.execute(
                 """
-                SELECT h.id, h.medico_id
+                SELECT h.id, h.medico_id, h.inicio, h.fin
                 FROM horarios h
                 JOIN medicos m ON m.id = h.medico_id
                 WHERE h.id = %s
@@ -284,6 +328,17 @@ def reservar_cita(
                 telefono=telefono,
                 rut=rut,
             )
+
+            # Varias citas el mismo dia estan bien; a la misma hora no.
+            choque = _cita_solapada(
+                conexion,
+                paciente_id=paciente_id,
+                inicio=horario["inicio"],
+                fin=horario["fin"],
+            )
+            if choque:
+                raise PacienteConCitaEnEseHorario(dict(choque))
+
             cita = conexion.execute(
                 """
                 INSERT INTO citas (
@@ -374,7 +429,7 @@ def reagendar_cita(
 
             horario = conexion.execute(
                 """
-                SELECT h.id, h.medico_id
+                SELECT h.id, h.medico_id, h.inicio, h.fin
                 FROM horarios h
                 JOIN medicos m ON m.id = h.medico_id
                 WHERE h.id = %s
@@ -401,6 +456,16 @@ def reagendar_cita(
 
             if ocupado:
                 raise HorarioNoDisponible
+
+            choque = _cita_solapada(
+                conexion,
+                paciente_id=paciente_id,
+                inicio=horario["inicio"],
+                fin=horario["fin"],
+                excluir_cita_id=cita_id,
+            )
+            if choque:
+                raise PacienteConCitaEnEseHorario(dict(choque))
 
             nueva_cita = conexion.execute(
                 """

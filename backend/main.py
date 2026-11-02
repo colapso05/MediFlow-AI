@@ -23,6 +23,8 @@ from backend.reservas import (
     CitaNoEncontrada,
     ClaveIdempotenciaEnConflicto,
     HorarioNoDisponible,
+    PacienteConCitaEnEseHorario,
+    RutDeOtroPaciente,
     cancelar_cita,
     reagendar_cita,
     reservar_cita,
@@ -412,6 +414,18 @@ def crear_cita(datos: NuevaCita):
         raise HTTPException(
             status_code=409, detail="El horario ya no está disponible"
         ) from error
+    except PacienteConCitaEnEseHorario as error:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "El paciente ya tiene una cita a esa misma hora: "
+                f"{error.detalle.get('medico')} "
+                f"({error.detalle.get('especialidad')}). "
+                "Debe moverla o cancelarla antes de agendar otra."
+            ),
+        ) from error
+    except RutDeOtroPaciente as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     except ClaveIdempotenciaEnConflicto as error:
         raise HTTPException(status_code=409, detail="Solicitud duplicada") from error
     except ValueError as error:
