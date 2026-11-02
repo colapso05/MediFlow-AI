@@ -210,7 +210,7 @@ def estado_guardrails():
 # Esta ventana agrupa los mensajes del mismo telefono que llegan dentro de
 # VENTANA_AGRUPACION segundos y los procesa como un solo turno del agente.
 
-VENTANA_AGRUPACION = float(os.getenv("VENTANA_AGRUPACION", "2.5"))
+VENTANA_AGRUPACION = float(os.getenv("VENTANA_AGRUPACION", "5"))
 
 
 class _Grupo:

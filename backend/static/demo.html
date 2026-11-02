@@ -110,7 +110,8 @@ const pill = document.getElementById('estadoPill');
   if (elTel) elTel.textContent = TELEFONO + ' · en línea';
 
 let historial = [];
-let enviando = false;
+let pendientes = 0;
+const lotesPintados = new Set();
 
 const hora = () => new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:false});
 document.getElementById('horaInicial').textContent = hora();
@@ -144,16 +145,17 @@ function agregar(texto, tipo, herramientas = []) {
 
 async function enviar() {
   const texto = entrada.value.trim();
-  if (!texto || enviando) return;
+  // Sin candado: se pueden mandar varios mensajes seguidos; el backend los
+  // agrupa en un solo turno y devuelve una respuesta por lote.
+  if (!texto) return;
 
-  enviando = true;
-  btn.disabled = true;
+  pendientes += 1;
   entrada.value = '';
   entrada.style.height = 'auto';
   agregar(texto, 'salida');
   escribiendo.classList.add('visible');
   hilo.scrollTop = hilo.scrollHeight;
-  pill.textContent = 'escribiendo…';
+  pill.textContent = pendientes > 1 ? pendientes + ' en proceso' : 'escribiendo…';
 
   try {
     // Un reintento automático: si la API se está reiniciando o el proveedor
@@ -180,10 +182,20 @@ async function enviar() {
 
     const datos = await r.json();
 
+    // Varios mensajes agrupados comparten un lote: la respuesta se pinta una vez.
+    if (datos.lote) {
+      if (lotesPintados.has(datos.lote)) return;
+      lotesPintados.add(datos.lote);
+    }
+
     historial.push({role: 'user', content: texto});
     historial.push({role: 'assistant', content: datos.respuesta});
 
-    agregar(datos.respuesta, 'entrada', datos.herramientas || []);
+    const chips = datos.agrupados > 1
+      ? ['⚡ ' + datos.agrupados + ' mensajes agrupados', ...(datos.herramientas || [])]
+      : (datos.herramientas || []);
+
+    agregar(datos.respuesta, 'entrada', chips);
     pill.textContent = 'agente activo';
   } catch (e) {
     const pista = location.protocol === 'file:'
@@ -193,9 +205,14 @@ async function enviar() {
     pill.textContent = 'sin conexión';
     console.error(e);
   } finally {
-    escribiendo.classList.remove('visible');
-    enviando = false;
-    btn.disabled = false;
+    pendientes -= 1;
+    if (pendientes <= 0) {
+      pendientes = 0;
+      escribiendo.classList.remove('visible');
+      pill.textContent = 'agente activo';
+    } else {
+      pill.textContent = pendientes + ' en proceso';
+    }
     entrada.focus();
   }
 }

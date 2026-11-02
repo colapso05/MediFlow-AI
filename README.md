@@ -110,12 +110,12 @@ proyecto usa la suya.
 
 ---
 
-## Agrupación de mensajes (ventana de 2,5 s)
+## Agrupación de mensajes (ventana de 5 s)
 
 En WhatsApp real el paciente escribe varias veces seguidas: "hola", "necesito hora", "con el doctor rojas".
-La API agrupa esos mensajes y responde **una sola vez**, no tres.
+La API agrupa esos mensajes y responde **una sola vez**, no tres. La ventana es de 5 segundos: si el paciente deja de escribir 5 s, se responde el lote completo.
 
-- Se configura con `VENTANA_AGRUPACION` en `.env` (segundos; por defecto `2.5`).
+- Se configura con `VENTANA_AGRUPACION` en `.env` (segundos; por defecto `5`).
 - Cada mensaje del mismo teléfono **reinicia** la ventana; cuando pasa ese tiempo sin mensajes nuevos, el lote se procesa en un solo turno del agente y todos los envíos pendientes reciben la misma respuesta.
 - En el simulador se ven los tres mensajes del paciente y **una sola respuesta**, con el chip "N mensajes agrupados".
 
