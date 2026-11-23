@@ -1,0 +1,7 @@
+[Unit]
+Description=Revisa las solicitudes del proyector de MediFlow
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/mediflow-proyector
+ExecStart=/usr/local/bin/mediflow-control ${MEDIFLOW_BUCKET} ${MEDIFLOW_REGION} ${MEDIFLOW_INSTANCE}

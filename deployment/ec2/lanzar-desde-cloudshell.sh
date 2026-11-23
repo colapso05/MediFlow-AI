@@ -5,6 +5,8 @@ paquete="${1:-$HOME/mediflow-ep3.zip}"
 region="${AWS_REGION:-us-east-1}"
 perfil="${MEDIFLOW_INSTANCE_PROFILE:-myS3Role}"
 nombre="mediflow-ep3"
+modo="${2:-privado}"
+case "$modo" in privado|proyector) ;; *) printf 'Usa privado o proyector.\n' >&2; exit 2 ;; esac
 export AWS_PAGER=''
 
 if [[ ! -r "$paquete" ]]; then
@@ -51,7 +53,7 @@ trap 'rm -f "$bootstrap"' EXIT
 {
     printf '#!/usr/bin/env bash\nset -euo pipefail\n'
     printf 'aws s3 cp s3://%s/arranque-aws.sh /tmp/mediflow-arranque.sh --region %s\n' "$bucket" "$region"
-    printf 'bash /tmp/mediflow-arranque.sh %s %s\n' "$bucket" "$region"
+    printf 'bash /tmp/mediflow-arranque.sh %s %s %s\n' "$bucket" "$region" "$modo"
 } > "$bootstrap"
 unzip -p "$paquete" deployment/ec2/arranque-aws.sh | \
     aws s3 cp - "s3://$bucket/arranque-aws.sh" --region "$region"
@@ -60,6 +62,6 @@ instancia=$(aws ec2 run-instances --region "$region" --image-id "$ami" --count 1
     --instance-type t3.small --subnet-id "$subred" --security-group-ids "$grupo" \
     --iam-instance-profile "Name=$perfil" --key-name vockey --user-data "file://$bootstrap" \
     --metadata-options HttpTokens=required --credit-specification CpuCredits=standard \
-    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$nombre},{Key=Revision,Value=$revision}]" \
-    --client-token "mediflow-$revision" --query 'Instances[0].InstanceId' --output text)
+    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$nombre},{Key=Revision,Value=$revision},{Key=MediflowBucket,Value=$bucket}]" \
+    --client-token "mediflow-$revision-$modo" --query 'Instances[0].InstanceId' --output text)
 printf 'Instancia: %s\nEvidencias: s3://%s/evidencia/\n' "$instancia" "$bucket"

@@ -1,0 +1,9 @@
+[Unit]
+Description=Revisa solicitudes del proyector de MediFlow
+
+[Timer]
+OnBootSec=15s
+OnUnitInactiveSec=10s
+
+[Install]
+WantedBy=timers.target
