@@ -41,4 +41,10 @@ if [[ -z "$estado" || "$estado" == None ]]; then
     done
 fi
 
+if [[ "${1:-abrir}" == abrir ]]; then
+    if bash "$asistente" "$@"; then
+        exit 0
+    fi
+    printf 'Reintentando el enlace una vez…\n'
+fi
 bash "$asistente" "$@"

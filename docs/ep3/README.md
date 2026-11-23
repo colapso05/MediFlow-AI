@@ -30,6 +30,8 @@
 
 ## Abrir el CRM en la sala
 
+**Preparen primero el [respaldo visual descargable](RESPALDO_PROYECTOR.html).** El enlace en vivo pudo abrirse en una prueba de diagnóstico, pero hubo intentos de CloudShell que no recibieron respuesta HTTPS. Confirmen que pueden entrar al CRM antes de proyectar.
+
 ### Antes de que los llamen
 
 1. Una persona abre **AWS Academy → Entorno de pruebas → Start Lab → AWS** desde el equipo que tenga a mano. En la consola selecciona **N. Virginia** (`us-east-1`) y abre **CloudShell** (el icono de terminal). Espera que aparezca el cursor.
