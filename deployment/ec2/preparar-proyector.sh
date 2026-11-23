@@ -31,8 +31,8 @@ if [[ -z "$estado" || "$estado" == None ]]; then
         --filters 'Name=tag:Name,Values=mediflow-ep3' 'Name=instance-state-name,Values=pending,running' \
         --query "sort_by(Reservations[].Instances[],&LaunchTime)[-1].Tags[?Key=='MediflowBucket']|[0].Value" \
         --output text)
-    printf 'Esperando que arranquen los servicios (unos minutos)…\n'
-    for ((i = 0; i < 35; i++)); do
+    printf 'Esperando que arranquen los servicios. Una restauración puede tomar varios minutos.\n'
+    for ((i = 0; i < 60; i++)); do
         if aws s3api head-object --region "$region" --bucket "$bucket" \
             --key evidencia/verificacion.json >/dev/null 2>&1; then
             break
