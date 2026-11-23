@@ -1,0 +1,3 @@
+Type,Name,Request Count,Failure Count,Median Response Time,Average Response Time,Min Response Time,Max Response Time,Average Content Size,Requests/s,Failures/s,50%,66%,75%,80%,90%,95%,98%,99%,99.9%,99.99%,100%
+POST,/api/predicciones/inasistencia,60,0,10,11.221781667457739,7.475999998860061,46.54439998557791,220.0,5.444613007134276,0.0,10,11,12,12,15,16,16,47,47,47,47
+,Aggregated,60,0,10,11.221781667457739,7.475999998860061,46.54439998557791,220.0,5.444613007134276,0.0,10,11,12,12,15,16,16,47,47,47,47
