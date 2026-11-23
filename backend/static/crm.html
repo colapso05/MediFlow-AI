@@ -291,6 +291,7 @@ const largo = iso => {
 };
 
 let medicos = [], slots = [], seleccion = null, accion = null;
+let ultimoRiesgo = null;
 
 async function jget(ruta){
   const r = await fetch(API + ruta);
@@ -446,7 +447,53 @@ function pintarDetalle(){
         <button class="btn pri" onclick="completar(${s.cita_id})">Marcar como atendida</button>
         <button class="btn" onclick="mover(${s.cita_id}, ${s.horario_id})">Mover a otro cupo</button>
         <button class="btn dan" onclick="cancelar(${s.cita_id})">Cancelar la cita</button>` : ''}
-    </div>`;
+    </div>
+    ${s.estado === 'confirmada' && s.creada_en && Date.parse(s.inicio) > Date.now() ? `
+      <div class="k" style="margin-top:14px">Riesgo de inasistencia</div>
+      <button class="btn" id="calcularRiesgo">Estimar riesgo</button>
+      <div class="v" id="resultadoRiesgo" role="status" style="margin-top:8px"></div>` : ''}`;
+
+  const boton = $('calcularRiesgo');
+  if (!boton) return;
+
+  const clave = `${s.cita_id}/${s.inicio}/${s.creada_en}`;
+  $('resultadoRiesgo').dataset.cita = clave;
+  const mostrarResultado = (texto) => {
+    const salida = $('resultadoRiesgo');
+    if (salida?.dataset.cita === clave) salida.textContent = texto;
+  };
+  if (ultimoRiesgo?.clave === clave) mostrarResultado(ultimoRiesgo.texto);
+
+  boton.onclick = async () => {
+    boton.disabled = true;
+    mostrarResultado('Calculando…');
+    const inicio = new Date(s.inicio);
+    const fechaLocal = inicio.toLocaleDateString('en-CA', { timeZone: TZ });
+    const diaSemana = (new Date(`${fechaLocal}T12:00:00Z`).getUTCDay() + 6) % 7;
+    const horaLocal = Number(new Intl.DateTimeFormat('en', {
+      timeZone: TZ, hour: '2-digit', hourCycle: 'h23',
+    }).format(inicio));
+
+    try {
+      const r = await jpost('/api/predicciones/inasistencia', {
+        dias_anticipacion: Math.max(0, (inicio - new Date(s.creada_en)) / 86_400_000),
+        dia_semana: diaSemana,
+        hora: horaLocal,
+      });
+      const porcentaje = new Intl.NumberFormat('es-CL', {
+        style: 'percent', maximumFractionDigits: 1,
+      }).format(r.probabilidad);
+      const accionSugerida = r.priorizar_recordatorio ? 'Priorizar recordatorio.' : 'Recordatorio habitual.';
+      const factores = r.factores.length ? ` Factores: ${r.factores.join(', ')}.` : '';
+      const texto = `${porcentaje}. ${accionSugerida}${factores} Modelo de demostración con datos sintéticos.`;
+      ultimoRiesgo = { clave, texto };
+      mostrarResultado(texto);
+    } catch {
+      mostrarResultado('No se pudo calcular el riesgo. Inténtalo de nuevo.');
+    } finally {
+      boton.disabled = false;
+    }
+  };
 }
 
 /* ---------------- acciones ---------------- */

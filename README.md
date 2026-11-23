@@ -199,6 +199,54 @@ asociado a otro número, la reserva se deriva a recepción en lugar de mezclar h
 
 ---
 
+## Predicción de inasistencia (EP3)
+
+Para la defensa, consulta la [guía de presentación de la EP3](docs/ep3/README.md).
+
+En el CRM, selecciona una cita futura confirmada y pulsa **Estimar riesgo**. La API recibe solo la
+anticipación de la reserva, el día de la semana (lunes = 0) y la hora de la cita en Chile. Devuelve
+una probabilidad, los factores que aumentaron la estimación y una sugerencia para priorizar el
+recordatorio. Este modelo local se entrenó con 4.000 citas sintéticas reproducibles y sirve para
+validar el flujo técnico. Sus métricas caracterizan la simulación. Para uso operativo se debe
+entrenar y validar con datos históricos de asistencia representativos de la clínica.
+
+Para regenerar el artefacto del modelo, instala `scikit-learn==1.9.1` en el entorno virtual y ejecuta
+`python entrenar_inasistencia.py`. El servicio carga el artefacto JSON al recibir la primera predicción.
+
+### Despliegue de la EP3 en EC2
+
+El entorno de demostración usa Docker Compose en una instancia Amazon EC2. Separa la API, el
+servicio de inferencia, PostgreSQL, RabbitMQ, el consumidor de eventos y la entrada HTTPS.
+Cada inferencia publica un evento persistente con la versión y el resultado del modelo. El
+consumidor recibe y confirma el evento. El mensaje contiene solo el resultado de la predicción.
+
+Con Docker Engine, Docker Compose y OpenSSL instalados, ejecuta `sudo bash deployment/ec2/iniciar.sh`
+en EC2. La entrada HTTPS escucha en `127.0.0.1:8443` y requiere usuario y contraseña. Las pruebas
+verifican el servidor con el certificado `privado/tls.crt`. Para abrir el CRM visual mediante
+un túnel SSH autorizado, usa la entrada HTTP local en `127.0.0.1:8080`. Las credenciales de demo
+se generan durante el arranque en `privado/clave-demo`. El agente
+conversacional se habilita si se configura `DEEPSEEK_API_KEY` en `deployment/ec2/.env`.
+
+El script `deployment/ec2/lanzar-desde-cloudshell.sh` usa el paquete de despliegue, el perfil
+existente de AWS Academy (`myS3Role`) y la llave `vockey`. Deja el paquete y las evidencias en un
+bucket S3 privado. El arranque ejecuta `deployment/ec2/verificar.py`, que comprueba las rutas
+protegidas y genera un informe de pruebas y latencias. Para reproducir las pruebas locales, ejecuta
+`python -m unittest test_agenda test_reservas test_rut tests.test_inferencia`.
+
+### Opción de SageMaker
+
+Para servir el mismo modelo en SageMaker, construye la imagen desde la raíz con
+`docker build --platform linux/amd64 -f deployment/sagemaker/Dockerfile -t mediflow-inferencia .`.
+Publica la imagen en ECR en la región del endpoint y úsala como contenedor del modelo en SageMaker.
+La plantilla `deployment/sagemaker/endpoint.yaml` crea el modelo y un endpoint bajo demanda con
+1 GB de memoria y concurrencia máxima de cinco. Requiere la URI de ECR y un rol existente que
+SageMaker pueda asumir para leer la imagen. La identidad que ejecuta el despliegue debe poder
+pasar ese rol a SageMaker.
+La imagen sirve `GET /ping` y `POST /invocations` en el puerto 8080. Cuando el endpoint esté
+`InService`, configura `SAGEMAKER_ENDPOINT` y `AWS_REGION` en el entorno de la API. El rol de ejecución
+de la API debe tener `sagemaker:InvokeEndpoint` sobre ese endpoint. Los fallos del endpoint devuelven
+HTTP 502 para que una prueba de despliegue pueda distinguirlos del modo local.
+
 ## Decisiones técnicas
 
 - **Idempotencia**: clave derivada de `teléfono + horario + nombre` (UUID v5) más huella del

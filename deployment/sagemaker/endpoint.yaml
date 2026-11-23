@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Modelo de inasistencia MediFlow en SageMaker Serverless Inference
+Parameters:
+  ImageUri:
+    Type: String
+    Description: URI de la imagen publicada en ECR en la misma región
+  ExecutionRoleArn:
+    Type: String
+    AllowedPattern: 'arn:aws[a-z-]*:iam::[0-9]{12}:role/.+'
+    Description: ARN del rol existente que puede asumir SageMaker y leer la imagen
+Resources:
+  Model:
+    Type: AWS::SageMaker::Model
+    Properties:
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      PrimaryContainer:
+        Image: !Ref ImageUri
+  EndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - ModelName: !GetAtt Model.ModelName
+          VariantName: Principal
+          ServerlessConfig:
+            MemorySizeInMB: 1024
+            MaxConcurrency: 5
+  Endpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointConfigName: !GetAtt EndpointConfig.EndpointConfigName
+Outputs:
+  EndpointName:
+    Value: !GetAtt Endpoint.EndpointName
+  EndpointArn:
+    Value: !GetAtt Endpoint.EndpointArn

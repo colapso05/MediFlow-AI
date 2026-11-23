@@ -8,17 +8,21 @@ from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import psycopg
+from botocore.exceptions import BotoCoreError, ClientError
 from psycopg.rows import dict_row
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.agenda import consultar_horarios
+from backend.prediccion import DatosPrediccion, ResultadoPrediccion, predecir_inasistencia
+from backend.sagemaker_runtime import invocar_endpoint
 from backend.reservas import (
     CitaNoEncontrada,
     ClaveIdempotenciaEnConflicto,
@@ -292,6 +296,9 @@ def conversar(datos: MensajeChat):
             "lote": None,
             "agrupados": 1,
         }
+
+    if not os.getenv("DEEPSEEK_API_KEY"):
+        raise HTTPException(status_code=503, detail="Agente conversacional sin configurar")
 
     grupo = _agrupar(telefono, datos.mensaje.strip(), sesion, list(datos.historial))
 
@@ -613,6 +620,28 @@ def crm_resumen():
         resumen = resumen_crm(conexion)
         resumen["agenda"] = agenda_por_medico(conexion)
         return resumen
+
+
+@app.post("/api/predicciones/inasistencia", tags=["Predicciones"], response_model=ResultadoPrediccion)
+def riesgo_inasistencia(datos: DatosPrediccion):
+    """Estima el riesgo de inasistencia usando el modelo configurado."""
+    servicio = os.getenv("INFERENCIA_URL", "").strip()
+    if servicio:
+        try:
+            respuesta = httpx.post(servicio, json=datos.model_dump(), timeout=10)
+            respuesta.raise_for_status()
+            return ResultadoPrediccion.model_validate_json(respuesta.content)
+        except (httpx.HTTPError, ValidationError) as error:
+            registro.warning("Inferencia remota fallida: %s", type(error).__name__)
+            raise HTTPException(status_code=502, detail="Servicio de predicción no disponible") from error
+    endpoint = os.getenv("SAGEMAKER_ENDPOINT", "").strip()
+    if endpoint:
+        try:
+            return invocar_endpoint(endpoint, datos)
+        except (BotoCoreError, ClientError, ValidationError) as error:
+            registro.warning("Inferencia SageMaker fallida: %s", type(error).__name__)
+            raise HTTPException(status_code=502, detail="Servicio de predicción no disponible") from error
+    return predecir_inasistencia(datos.dias_anticipacion, datos.dia_semana, datos.hora)
 
 
 @app.get("/api/agenda")

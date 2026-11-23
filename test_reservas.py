@@ -1,5 +1,6 @@
 import unittest
 from contextlib import nullcontext
+from datetime import datetime, timezone
 from uuid import UUID
 
 from backend.reservas import (
@@ -70,9 +71,14 @@ class ConexionPrueba:
                 })
             return Resultado(None)
         if consulta.startswith("SELECT h.id, h.medico_id"):
-            if parametros == (8, 3):
-                return Resultado({"id": 8, "medico_id": 3})
-            return Resultado({"id": 7, "medico_id": 3})
+            return Resultado({
+                "id": parametros[0],
+                "medico_id": 3,
+                "inicio": datetime(2026, 12, 3, 15, 0, tzinfo=timezone.utc),
+                "fin": datetime(2026, 12, 3, 15, 30, tzinfo=timezone.utc),
+            })
+        if consulta.startswith("SELECT c.id, h.inicio, h.fin"):
+            return Resultado(None)
         if consulta.startswith("SELECT 1 FROM citas"):
             return Resultado({"?column?": 1} if self.ocupado else None)
         if consulta.startswith("UPDATE citas") and "RETURNING" in consulta:

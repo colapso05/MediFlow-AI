@@ -1,0 +1,25 @@
+{
+  "version": "inasistencia-demo-1",
+  "datos_entrenamiento": "sinteticos",
+  "variables": [
+    "anticipacion",
+    "fin_de_semana",
+    "primera_hora"
+  ],
+  "coeficientes": [
+    1.4050108506401036,
+    0.5553432005445132,
+    0.6170615719493889
+  ],
+  "intercepto": -2.6427547132162093,
+  "umbral": 0.25,
+  "filas_entrenamiento": 3000,
+  "filas_prueba": 1000,
+  "metricas_prueba": {
+    "accuracy": 0.747,
+    "precision": 0.4,
+    "recall": 0.5174129353233831,
+    "f1": 0.4511930585683297,
+    "roc_auc": 0.7122802757177815
+  }
+}

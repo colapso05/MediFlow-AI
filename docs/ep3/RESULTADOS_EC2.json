@@ -1,0 +1,82 @@
+{
+  "pruebas": [
+    {
+      "caso": "salud y PostgreSQL",
+      "estado_http": 200
+    },
+    {
+      "caso": "CRM",
+      "estado_http": 200
+    },
+    {
+      "caso": "OpenAPI",
+      "estado_http": 200
+    },
+    {
+      "caso": "especialidades",
+      "estado_http": 200
+    },
+    {
+      "caso": "resumen CRM",
+      "estado_http": 200
+    },
+    {
+      "caso": "protección CRM",
+      "estado_http": 401
+    },
+    {
+      "caso": "protección predicción",
+      "estado_http": 401
+    },
+    {
+      "caso": "predicción con riesgo alto",
+      "estado_http": 200
+    },
+    {
+      "caso": "predicción con riesgo bajo",
+      "estado_http": 200
+    },
+    {
+      "caso": "rechazo de hora inválida",
+      "estado_http": 422
+    },
+    {
+      "caso": "rechazo de día inválido",
+      "estado_http": 422
+    }
+  ],
+  "predicciones": {
+    "predicción con riesgo alto": {
+      "probabilidad": 0.7924,
+      "priorizar_recordatorio": true,
+      "factores": [
+        "Anticipación de la reserva",
+        "Cita antes de las 10:00",
+        "Cita en fin de semana"
+      ],
+      "version_modelo": "inasistencia-demo-1",
+      "datos_entrenamiento": "sinteticos"
+    },
+    "predicción con riesgo bajo": {
+      "probabilidad": 0.0664,
+      "priorizar_recordatorio": false,
+      "factores": [],
+      "version_modelo": "inasistencia-demo-1",
+      "datos_entrenamiento": "sinteticos"
+    }
+  },
+  "carga": {
+    "solicitudes": 50,
+    "concurrencia": 5,
+    "estados_http": {
+      "200": 50
+    },
+    "errores_pct": 0.0,
+    "solicitudes_por_segundo": 4.77,
+    "latencia_ms": {
+      "p50": 645.98,
+      "p95": 1283.18,
+      "p99": 1360.76
+    }
+  }
+}

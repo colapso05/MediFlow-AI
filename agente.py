@@ -1,6 +1,7 @@
 
 import os
 from datetime import datetime
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -14,17 +15,17 @@ from herramientas import HERRAMIENTAS
 
 load_dotenv()
 
-if not os.getenv("DEEPSEEK_API_KEY"):
-    raise RuntimeError("Falta DEEPSEEK_API_KEY en .env")
-
-llm = ChatOpenAI(
-    model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
-    api_key=os.environ["DEEPSEEK_API_KEY"],
-    base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-    temperature=0.2,
-)
-
-llm_con_herramientas = llm.bind_tools(HERRAMIENTAS)
+@lru_cache(maxsize=1)
+def obtener_llm():
+    clave = os.getenv("DEEPSEEK_API_KEY")
+    if not clave:
+        raise RuntimeError("Falta DEEPSEEK_API_KEY en .env")
+    return ChatOpenAI(
+        model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
+        api_key=clave,
+        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        temperature=0.2,
+    ).bind_tools(HERRAMIENTAS)
 
 SYSTEM_PROMPT = """
 Eres MediFlow AI, la recepcionista virtual de una clínica en Chile.
@@ -87,6 +88,7 @@ def prompt_actual() -> str:
 
 
 def responder(state: MessagesState):
+    llm_con_herramientas = obtener_llm()
     print("[LANGGRAPH] Consultando DeepSeek...", flush=True)
 
     mensajes = [SystemMessage(content=prompt_actual()), *state["messages"]]

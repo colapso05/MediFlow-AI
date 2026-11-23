@@ -1,5 +1,6 @@
 .venv/
 .env
+deployment/ec2/privado/
 __pycache__/
 *.pyc
 

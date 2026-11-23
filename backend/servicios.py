@@ -231,6 +231,7 @@ def agenda_del_dia(
             c.id AS cita_id,
             c.estado,
             c.canal,
+            c.creada_en,
             p.id AS paciente_id,
             p.nombre AS paciente,
             p.telefono,
