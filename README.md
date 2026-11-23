@@ -233,6 +233,12 @@ bucket S3 privado. El arranque ejecuta `deployment/ec2/verificar.py`, que compru
 protegidas y genera un informe de pruebas y latencias. Para reproducir las pruebas locales, ejecuta
 `python -m unittest test_agenda test_reservas test_rut tests.test_inferencia`.
 
+Para la defensa con datos sintéticos, `deployment/ec2/enlace-crm.sh` puede abrir un enlace HTTPS
+temporal hacia el CRM. Instala el binario oficial de `cloudflared` en
+`/usr/local/bin/cloudflared` y copia el script con
+`sudo install -m 0755 deployment/ec2/enlace-crm.sh /usr/local/bin/mediflow-enlace`.
+El enlace se activa explícitamente y conserva la autenticación del CRM.
+
 ### Opción de SageMaker
 
 Para servir el mismo modelo en SageMaker, construye la imagen desde la raíz con

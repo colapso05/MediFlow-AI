@@ -2,7 +2,7 @@
 
 **Idea que deben saber los tres.** En la EP2 diseñamos la arquitectura de agendamiento. En la EP3 la llevamos a AWS EC2 y agregamos una predicción de inasistencia que recepción puede consultar desde el CRM.
 
-**Tiempo.** Demis 3 min · Bruno 4 min · Matías 6 min · 2 min de margen. Usen el [paso a paso de la demo](README.md#abrir-la-demo-desde-el-computador-de-la-universidad) en el ensayo.
+**Tiempo.** Demis 3 min · Bruno 4 min · Matías 6 min · 2 min de margen. Usen el [paso a paso de la demo](README.md#abrir-el-crm-en-la-sala) y dejen el CRM abierto antes del turno.
 
 ## Demis · láminas 1 y 2 · problema y cambio
 
@@ -27,7 +27,7 @@
 1. Muestra **mediflow-ep3 · En ejecución** y vuelve al CRM. “Esta instancia ejecuta los servicios que acabamos de ver.”
 2. En **Agenda**, abre una cita confirmada futura y pulsa **Estimar riesgo**. “Recepción selecciona una cita. El sistema usa su anticipación, día y hora, y devuelve la probabilidad con una acción sugerida.” Lee la acción que salió.
 3. Cambia a la terminal de AWS. Ejecuta la llamada `curl` de la guía. “Aquí consumimos por REST el mismo endpoint que usa el flujo del tablero. Este caso tiene 60 días de anticipación y un horario temprano de fin de semana. La respuesta trae la probabilidad, los factores y la sugerencia.”
-4. Ejecuta `sudo mediflow-demo`. Cuando termine, señala los casos fijos **79,24 %** y **6,64 %**. “Con la cita de riesgo alto sugerimos priorizar. Con la de riesgo bajo mantenemos el recordatorio habitual.”
+4. Señala los casos fijos **79,24 %** en la respuesta REST y **6,64 %** en los resultados guardados. “Con la cita de riesgo alto sugerimos priorizar. Con la de riesgo bajo mantenemos el recordatorio habitual.”
 
 **Vuelve a la lámina 5, 2 min.** “Pasaron 11 comprobaciones funcionales. La prueba de carga envió 50 peticiones en grupos de cinco y todas devolvieron HTTP 200. En la corrida guardada, el percentil 95 fue 1,28 segundos. También comprobamos que el consumidor recibe los eventos de RabbitMQ. Esta es una prueba acotada dentro de la instancia. Para un piloto ampliaríamos la carga, vigilaríamos errores y latencia, y validaríamos el modelo con datos representativos.”
 

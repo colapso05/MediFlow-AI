@@ -27,51 +27,49 @@
 
 **Qué mostrar en vivo.** La pauta EP3, página 4, pide el sistema funcionando en AWS, una predicción en tiempo real, el dashboard, el consumo REST y el flujo completo. Muestren **EC2 en ejecución → cita en el CRM → Estimar riesgo → probabilidad y recomendación → llamada a la API**. Usen la consola para mostrar que la instancia está en ejecución y acceder a la terminal. La carga y los eventos son evidencia adicional, no necesitan recorrer toda la consola.
 
-## Abrir la demo desde el computador de la universidad
+## Abrir el CRM en la sala
 
-1. Entren a **AWS Academy → Learner Lab**. Si está inactivo, pulsen **Start Lab**. Cuando esté habilitado, pulsen **AWS**. En la consola seleccionen **N. Virginia (`us-east-1`)**.
-2. Abran **EC2 → Instancias → mediflow-ep3**. Si está detenida, pulsen **Estado de la instancia → Iniciar instancia**. Esperen **En ejecución** y que pasen las comprobaciones de estado. El arranque puede tomar unos minutos.
-3. Elijan **Conectar → EC2 Instance Connect → En el navegador web** y conecten con el usuario `ec2-user`. Esta ruta se probó en el lab y no necesita instalar Docker, Python ni Postman en el computador de la universidad. [Documentación de EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html).
-4. En la terminal de AWS ejecuten:
+### Antes de que los llamen
 
-   ```bash
-   sudo mediflow-demo
-   ```
-
-   Tarda alrededor de diez segundos. Muestra 11 comprobaciones, dos predicciones, las respuestas HTTP de la prueba de carga y los últimos eventos del consumidor de RabbitMQ. El CRM también se comprueba como ruta autenticada. La latencia varía entre corridas.
-
-5. Para mostrar una llamada REST por separado, preparen este bloque en la terminal de AWS. El comando lee la clave sin imprimirla y devuelve el JSON del caso de alto riesgo.
+1. Una persona abre **AWS Academy → Entorno de pruebas → Start Lab → AWS** desde el equipo que tenga a mano. En la consola selecciona **N. Virginia** (`us-east-1`) y abre **CloudShell** (el icono de terminal). Espera que aparezca el cursor.
+2. Pega este comando una vez en CloudShell. Enciende EC2 si estaba detenida y muestra el enlace y la clave. Si el laboratorio se reinició y la instancia desapareció, el mismo comando vuelve a desplegar MediFlow. En ese caso, dale unos minutos antes de pasar al frente.
 
    ```bash
-   sudo bash -c 'cd /opt/mediflow/deployment/ec2 && curl -fsS --cacert privado/tls.crt -u "mediflow:$(cat privado/clave-demo)" -H "Content-Type: application/json" -d "{\"dias_anticipacion\":60,\"dia_semana\":6,\"hora\":8}" https://localhost:8443/api/predicciones/inasistencia && printf "\n"'
+   curl -fsSL https://raw.githubusercontent.com/colapso05/MediFlow-AI/evaluacion-3/deployment/ec2/preparar-proyector.sh -o ~/preparar-mediflow.sh && bash ~/preparar-mediflow.sh
    ```
 
-### Abrir el CRM visual antes de proyectar
+3. En el **computador de la sala**, abran el enlace `https://…trycloudflare.com/crm`. Inicien sesión con usuario **`mediflow`** y la clave que mostró CloudShell. Dejen el CRM abierto junto a la presentación, con la sesión iniciada y una cita seleccionada. Basta el navegador de la sala, sin PEM, sin instalar programas y sin cambiar reglas de red.
 
-Háganlo en el ensayo. Requiere OpenSSH en el computador de la universidad y que la red permita el puerto 22. Mantengan lista la demo del navegador de AWS del paso anterior por si la red bloquea esta conexión.
+El enlace HTTPS dura hasta dos horas y cambia cada vez que se abre un túnel nuevo. Pasa por Cloudflare y apunta al CRM con datos sintéticos que corre en EC2. [Documentación de Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
 
-1. En **AWS Academy → AWS Details**, descarguen la clave PEM del laboratorio. Guárdenla temporalmente en el perfil del usuario y revisen el nombre del archivo.
-2. En **EC2 → mediflow-ep3 → Seguridad**, abran el grupo de seguridad de la instancia. Agreguen una regla **SSH (22) → Mi IP**, solo para la IP del computador que hará la demo. Conserven la regla existente de EC2 Instance Connect. Copien la **IPv4 pública actual** desde los detalles de EC2.
-3. En **PowerShell del computador**, reemplacen `IP_ACTUAL` y, si corresponde, el nombre de la clave. El túnel queda abierto mientras siga activa esa ventana.
+### Durante la demo
 
-   ```powershell
-   ssh -i "$env:USERPROFILE\Downloads\labsuser.pem" -o HostKeyAlgorithms=ssh-ed25519 -o ExitOnForwardFailure=yes -N -L 8080:127.0.0.1:8080 ec2-user@IP_ACTUAL
+1. En **Agenda**, abran una **cita futura confirmada** y pulsen **Estimar riesgo**. Lean la probabilidad y la recomendación. Si no hay citas confirmadas en el día mostrado, cambien la fecha.
+2. Para mostrar el consumo REST, tengan listo este bloque en **CloudShell**. Pedirá pegar el enlace completo del CRM y la clave. La clave no se muestra mientras se escribe. La respuesta corresponde al caso fijo de alto riesgo.
+
+   ```bash
+   {
+     read -rp 'Enlace del CRM: ' crm
+     read -rsp 'Clave del CRM: ' clave; printf '\n'
+     curl -fsS -u "mediflow:$clave" -H 'Content-Type: application/json' \
+       -d '{"dias_anticipacion":60,"dia_semana":6,"hora":8}' \
+       "${crm%/crm}/api/predicciones/inasistencia"; printf '\n'
+     unset crm clave
+   }
    ```
 
-   Si SSH pregunta por la huella, compárenla con `sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` en la terminal de AWS. Si el puerto 8080 ya está ocupado, cambien solo el primer `8080` del comando a `8081` y usen ese mismo puerto en el navegador.
-4. Abran `http://127.0.0.1:8080/crm` en el computador. Usuario `mediflow`. Antes de compartir pantalla, consulten la clave en la terminal de AWS con `sudo cat /opt/mediflow/deployment/ec2/privado/clave-demo`. El navegador se conecta al puerto local y SSH cifra la conexión hasta EC2.
-5. En **Agenda**, abran una **cita futura confirmada** y pulsen **Estimar riesgo**. Lean la probabilidad y la acción sugerida. Si el día actual no tiene citas confirmadas, cambien a otra fecha de la agenda. El caso fijado en la prueba de terminal sirve para mostrar ambos resultados aunque el porcentaje de la cita del CRM sea distinto.
+3. En la lámina 5, muestren las 11 comprobaciones HTTPS y el resultado de carga registrado. El [JSON de la ejecución](RESULTADOS_EC2.json) contiene también la respuesta del caso fijo de riesgo bajo.
 
 ### Si algo falla
 
-| Situación | Qué mostrar o hacer |
+| Situación | Qué hacer |
 | --- | --- |
-| EC2 abre, pero los servicios todavía no responden | En la terminal de AWS, ejecuten `cd /opt/mediflow/deployment/ec2 && sudo docker compose up -d --wait`. Vuelvan a ejecutar `sudo mediflow-demo`. |
-| La red bloquea el túnel del CRM | Ejecuten en vivo `sudo mediflow-demo` y la llamada REST en la terminal de AWS. Usen la lámina 6 para explicar cómo recepción usa el resultado en el CRM. Indiquen que el tablero interactivo no pudo abrirse desde ese computador. |
-| AWS Academy o la conexión web falla | Abran el PDF descargado, vayan a las láminas 5 y 6 y muestren los resultados de la ejecución registrada. Indiquen al docente que están usando evidencia de respaldo. |
+| El enlace dejó de funcionar | Vuelvan a ejecutar `bash ~/preparar-mediflow.sh` en CloudShell para recuperar o renovar el enlace. |
+| La red de la sala bloquea el enlace | Intenten desde otro equipo conectado al proyector. Si CloudShell sí lo alcanza, ejecuten ahí la llamada REST. Expliquen el uso del CRM con la lámina 6. |
+| AWS Academy no abre | Usen el PDF descargado y el JSON guardado. Digan que corresponden a una corrida anterior. |
 
 ### Al terminar
 
-Cierren el túnel con `Ctrl+C`, eliminen la regla temporal SSH de **Mi IP** si la agregaron y borren la copia de la PEM del computador compartido. En EC2, pulsen **Estado de la instancia → Detener instancia** y esperen **Detenida**. La próxima vez, la IPv4 pública puede cambiar. El disco EBS conserva el despliegue y puede seguir usando presupuesto de almacenamiento. [Detener e iniciar una instancia EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Stop_Start.html).
+En CloudShell, ejecuten `bash ~/preparar-mediflow.sh cerrar`. Esto corta el enlace y solicita detener EC2. Cierren el navegador de la sala. El disco EBS conserva el despliegue mientras el laboratorio mantenga los recursos. [Detener e iniciar una instancia EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Stop_Start.html).
 
 Para la entrega en AVA, renombren los PDF según su número de equipo y apellidos. La pauta indica `EP3_Presentacion_Equipo[N].pdf` para la presentación y `EP3_Equipo[N]_Apellidos.pdf` para el informe.
