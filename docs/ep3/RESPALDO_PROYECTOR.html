@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediFlow AI · Respaldo de la demo</title>
+<style>
+  :root { color-scheme: light; background: #eef4f1; color: #18343c; font-family: system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  main { max-width: 72rem; margin: auto; padding: 4rem 1.5rem; }
+  h1 { font-size: clamp(2rem, 6vw, 4rem); margin: .45rem 0; line-height: 1.05; }
+  p { line-height: 1.5; }
+  .estado { color: #006a5d; font-weight: 700; }
+  .casos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: 1.25rem; margin-top: 2rem; }
+  article { background: #fff; border: 1px solid #cbdcd5; border-radius: 1rem; padding: 1.5rem; }
+  h2 { margin: 0 0 .5rem; }
+  .resultado { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 750; margin: .25rem 0; line-height: 1; }
+  .accion { font-weight: 700; color: #006a5d; }
+  .resumen { margin-top: 2rem; border-top: 1px solid #cbdcd5; padding-top: .5rem; }
+</style>
+</head>
+<body>
+<main>
+  <p class="estado">MediFlow AI · respaldo sin conexión</p>
+  <h1>Prioridad de recordatorios</h1>
+  <p>Dos respuestas registradas en AWS EC2 el 23 de noviembre de 2026. Las citas son ficticias.</p>
+  <section class="casos" aria-label="Casos verificados">
+    <article>
+      <h2>Cita del domingo</h2>
+      <p>08:00 · reservada con 60 días de anticipación</p>
+      <p class="resultado">79,24 %</p>
+      <p class="accion">Priorizar recordatorio</p>
+      <p>Factores del modelo: anticipación de la reserva, cita antes de las 10:00 y fin de semana.</p>
+    </article>
+    <article>
+      <h2>Cita del lunes</h2>
+      <p>15:00 · reservada el mismo día</p>
+      <p class="resultado">6,64 %</p>
+      <p class="accion">Mantener recordatorio habitual</p>
+      <p>El modelo no reportó factores que aumentaran el riesgo en este ejemplo.</p>
+    </article>
+  </section>
+  <div class="resumen">
+    <p><strong>Verificación en EC2.</strong> 11 comprobaciones funcionales · 50 de 50 respuestas HTTP 200 · latencia p95 de 1.283,18 ms.</p>
+    <p>Fuente: RESULTADOS_EC2.json. Esta vista muestra resultados guardados y funciona sin conexión.</p>
+  </div>
+</main>
+</body>
+</html>

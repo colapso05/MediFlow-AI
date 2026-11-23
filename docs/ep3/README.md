@@ -8,6 +8,7 @@
 | [Guion para Demis, Bruno y Matías](GUION_DEFENSA.md) | Qué dice cada uno, en qué lámina y qué responder al docente. |
 | [Informe técnico PDF](MediFlow_AI_EP3_Informe_AWS.pdf) | Arquitectura, validación, limitaciones y operación. Guarden una copia local. |
 | [Resultados HTTP registrados en EC2](RESULTADOS_EC2.json) | Evidencia de dos predicciones, 11 comprobaciones y 50 solicitudes. Respaldo para explicar los resultados si falla la demo en vivo. |
+| [Vista de respaldo para el proyector](RESPALDO_PROYECTOR.html) | Descarguen el HTML desde GitHub y ábranlo en el navegador. Muestra los dos resultados guardados sin conexión. |
 
 ## Ensayo de 30 minutos
 
@@ -66,7 +67,7 @@ El enlace HTTPS dura hasta dos horas y cambia cada vez que se abre un túnel nue
 | --- | --- |
 | El enlace dejó de funcionar | Vuelvan a ejecutar `bash ~/preparar-mediflow.sh` en CloudShell para recuperar o renovar el enlace. |
 | La red de la sala bloquea el enlace | Intenten desde otro equipo conectado al proyector. Si CloudShell sí lo alcanza, ejecuten ahí la llamada REST. Expliquen el uso del CRM con la lámina 6. |
-| AWS Academy no abre | Usen el PDF descargado y el JSON guardado. Digan que corresponden a una corrida anterior. |
+| AWS Academy no abre | Abran el [respaldo visual descargado](RESPALDO_PROYECTOR.html) y la presentación PDF. Digan que corresponden a una corrida anterior. |
 
 ### Al terminar
 

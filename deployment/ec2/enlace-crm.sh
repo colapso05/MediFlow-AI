@@ -4,6 +4,7 @@ set -euo pipefail
 unidad=mediflow-enlace.service
 origen=http://127.0.0.1:8080
 clave=/opt/mediflow/deployment/ec2/privado/clave-demo
+registro=/run/mediflow-enlace/cloudflared.log
 
 case "${1:-abrir}" in
     cerrar)
@@ -31,17 +32,18 @@ if ! systemctl is-active --quiet "$unidad"; then
         exit 1
     fi
     systemd-run --quiet --collect --unit="$unidad" --property=RuntimeMaxSec=2h \
-        --property=DynamicUser=yes \
-        /usr/local/bin/cloudflared tunnel --no-autoupdate --protocol http2 --url "$origen"
+        --property=DynamicUser=yes --property=RuntimeDirectory=mediflow-enlace \
+        /usr/local/bin/cloudflared tunnel --no-autoupdate --protocol http2 \
+            --logfile "$registro" --url "$origen"
 fi
 
-for ((i = 0; i < 35; i++)); do
-    invocacion=$(systemctl show -p InvocationID --value "$unidad")
-    if [[ -n "$invocacion" && "$invocacion" != 00000000000000000000000000000000 ]]; then
-        enlace=$(journalctl --quiet --no-pager -o cat "_SYSTEMD_INVOCATION_ID=$invocacion" |
-            sed -nE 's@.*(https://[a-z0-9-]+\.trycloudflare\.com).*@\1@p' | tail -n 1)
+vence=$((SECONDS + 65))
+estado=000
+while ((SECONDS < vence)); do
+    if [[ -s "$registro" ]]; then
+        enlace=$(sed -nE 's@.*(https://[a-z0-9-]+\.trycloudflare\.com).*@\1@p' "$registro" | tail -n 1)
         if [[ -n "$enlace" ]]; then
-            estado=$(curl -sS --max-time 2 -o /dev/null -w '%{http_code}' "$enlace/crm" 2>/dev/null || true)
+            estado=$(curl -sS --max-time 3 -o /dev/null -w '%{http_code}' "$enlace/crm" 2>/dev/null || true)
             if [[ "$estado" == 401 ]]; then
                 printf 'Abre en el navegador: %s/crm\n' "$enlace"
                 printf 'Usuario: mediflow · El enlace vence dentro de 2 horas desde su apertura.\n'
@@ -56,5 +58,5 @@ done
 if systemctl is-active --quiet "$unidad"; then
     systemctl stop "$unidad"
 fi
-printf 'No se pudo verificar el acceso HTTPS. Revisa: sudo journalctl -u %s -n 25\n' "$unidad" >&2
+printf 'No se pudo verificar el acceso HTTPS (estado %s).\n' "$estado" >&2
 exit 1
